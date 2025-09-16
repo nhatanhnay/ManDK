@@ -10,7 +10,7 @@ ButtonColors:
     icon_alpha: 48
     icon_color: '#000000'
     text_color: '#000000'
-    top_color: '#aa0000'
+    top_color: '#ffffff'
   selected:
     border_color: '#000000'
     icon_alpha: 255

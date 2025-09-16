@@ -3,15 +3,15 @@ import os
 from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QPainter
 
-# Thêm đường dẫn để import data module
+# Import from data_management module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import system_data_manager, module_manager
+from data_management import system_data_manager, module_manager
 
-# Import components
-from .components.grid_background import GridBackgroundWidget
-from .components.system_diagram_renderer import SystemDiagramRenderer
-from .components.info_panel_renderer import InfoPanelRenderer
-from .components.event_handler import InfoTabEventHandler
+# Import components from ui
+from ui.components.grid_background_renderer import GridBackgroundRenderer, GridBackgroundWidget
+from ui.components.system_diagram_renderer import SystemDiagramRenderer
+from ui.components.info_panel_renderer import InfoPanelRenderer
+from ui.components.event_handler import InfoTabEventHandler
 
 
 def resource_path(relative_path):
