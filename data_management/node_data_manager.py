@@ -111,6 +111,12 @@ class SystemDataManager:
             ('hn11', 'HN11'),
             ('hn12', 'HN12')
         ]
+
+        # Tủ động cơ riêng biệt (ngoài khoang)
+        motor_cabinets = [
+            ('dong_co_huong', 'Động cơ\nhướng'),
+            ('dong_co_tam', 'Động cơ\ntầm')
+        ]
         
         # Khoang điều khiển giữa
         compartment2_nodes = [
@@ -139,7 +145,7 @@ class SystemDataManager:
         ]
         
         # Tạo tất cả nodes
-        all_nodes = compartment1_nodes + compartment2_nodes + compartment3_nodes + sight_column_nodes
+        all_nodes = compartment1_nodes + compartment2_nodes + compartment3_nodes + sight_column_nodes + motor_cabinets
         for node_id, name in all_nodes:
             self.nodes[node_id] = NodeData(node_id, name)
             

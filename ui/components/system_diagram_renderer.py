@@ -114,6 +114,9 @@ class SystemDiagramRenderer:
             self._draw_compartment(painter, comp, width, compartment_height,
                                  box_color, text_color, border_color)
 
+        # Vẽ các tủ động cơ riêng biệt (ngoài khoang điều khiển)
+        self._draw_motor_cabinets(painter, compartments, box_color, text_color, border_color)
+
         # Vẽ các kết nối orthogonal giữa các components
         self._draw_block_diagram_connections(painter, compartments, sight_column,
                                            compartment_width, compartment_width_center,
@@ -223,6 +226,123 @@ class SystemDiagramRenderer:
         text_rect = QRect(x + 5, y + 5, box_width - 10, box_height - 10)
         painter.drawText(text_rect, Qt.AlignCenter, text)
 
+    def _draw_motor_cabinets(self, painter, compartments, box_color, text_color, border_color):
+        """Vẽ các tủ động cơ riêng biệt ngoài khoang điều khiển."""
+        # Tìm vị trí của các hộp dẫn động để đặt tủ động cơ phía trên
+        for i, comp in enumerate(compartments):
+            if i == 0 or i == 2:  # Chỉ vẽ cho khoang 1 và 2 (có hộp dẫn động)
+                comp_x = comp['x']
+                comp_y = comp['y']
+
+                # Tìm vị trí hộp dẫn động kềnh hướng và kềnh tầm
+                huong_pos = None
+                tam_pos = None
+
+                for box_name, box_x, box_y in comp['boxes']:
+                    if 'kềnh hướng' in box_name:
+                        huong_pos = (comp_x + box_x, comp_y + box_y)
+                    elif 'kềnh tâm' in box_name:
+                        tam_pos = (comp_x + box_x, comp_y + box_y)
+
+                if huong_pos and tam_pos:
+                    # Tính toán kích thước motor cabinet để áp dụng mirroring
+                    metrics = QFontMetrics(painter.font())
+                    motor_lines = 'Động cơ\nhướng'.split('\n')
+                    motor_max_width = max(metrics.width(line) for line in motor_lines)
+                    motor_width = motor_max_width + 20
+
+                    # Lấy compartment width để tính mirroring (cùng logic với regular boxes)
+                    comp_width = 450  # compartment_width cho khoang 1 và 2
+
+                    if i == 0:  # Khoang 1 (bên trái)
+                        # Vẽ tủ động cơ hướng (phía trên hộp dẫn động kềnh hướng)
+                        motor_huong_x = huong_pos[0]
+                        motor_huong_y = huong_pos[1] - 200
+                        self._draw_motor_cabinet(painter, 'Động cơ\nhướng',
+                                               motor_huong_x, motor_huong_y,
+                                               box_color, text_color, border_color,
+                                               'dong_co_huong')
+
+                        # Vẽ tủ động cơ tầm (phía trên hộp dẫn động kềnh tầm)
+                        motor_tam_x = tam_pos[0]
+                        motor_tam_y = tam_pos[1] - 200
+                        self._draw_motor_cabinet(painter, 'Động cơ\ntầm',
+                                               motor_tam_x, motor_tam_y,
+                                               box_color, text_color, border_color,
+                                               'dong_co_tam')
+
+
+                    elif i == 2:  # Khoang 2 (bên phải) - áp dụng mirroring như regular boxes
+                        # Tính vị trí mirrored cho motor cabinet hướng
+                        original_box_x = huong_pos[0] - comp_x  # Lấy relative position
+                        mirrored_huong_x = comp_width - (original_box_x + motor_width)
+                        motor_huong_x = comp_x + mirrored_huong_x
+                        motor_huong_y = huong_pos[1] - 200
+                        self._draw_motor_cabinet(painter, 'Động cơ\nhướng',
+                                               motor_huong_x, motor_huong_y,
+                                               box_color, text_color, border_color,
+                                               'dong_co_huong')
+
+                        # Tính vị trí mirrored cho motor cabinet tầm
+                        original_tam_x = tam_pos[0] - comp_x  # Lấy relative position
+                        mirrored_tam_x = comp_width - (original_tam_x + motor_width)
+                        motor_tam_x = comp_x + mirrored_tam_x
+                        motor_tam_y = tam_pos[1] - 200
+                        self._draw_motor_cabinet(painter, 'Động cơ\ntầm',
+                                               motor_tam_x, motor_tam_y,
+                                               box_color, text_color, border_color,
+                                               'dong_co_tam')
+
+
+    def _draw_motor_cabinet(self, painter, text, x, y, box_color, text_color, border_color, cabinet_type):
+        """Vẽ một tủ động cơ với status error/normal."""
+        # Tính kích thước hộp
+        metrics = QFontMetrics(painter.font())
+        lines = text.split('\n')
+        max_width = max(metrics.width(line) for line in lines)
+        box_width = max_width + 20
+        box_height = len(lines) * metrics.height() + 10
+
+        # Xác định trạng thái lỗi từ node data
+        has_error = False
+        try:
+            node = system_data_manager.get_node(cabinet_type)
+            if node:
+                has_error = node.has_error
+        except:
+            pass  # Fallback to normal status
+
+        # Màu sắc dựa trên trạng thái
+        if has_error:
+            cabinet_color = QColor(200, 80, 80)     # Đỏ cho lỗi
+            cabinet_border = QColor(255, 100, 100)
+        else:
+            cabinet_color = QColor(80, 180, 80)     # Xanh cho bình thường
+            cabinet_border = QColor(100, 220, 100)
+
+        # Lưu vùng clickable với proper node_id mapping
+        node_rect = QRect(x, y, box_width, box_height)
+
+        # Get proper node_id from mapping
+        from data_management.node_mapping_manager import NODE_NAME_TO_ID
+        mapped_node_id = NODE_NAME_TO_ID.get(text, cabinet_type)
+
+        self.node_regions.append({
+            'rect': node_rect,
+            'name': text,
+            'node_id': mapped_node_id
+        })
+
+        # Vẽ hộp với màu trạng thái
+        painter.setPen(QPen(cabinet_border, 2))
+        painter.setBrush(QBrush(cabinet_color))
+        painter.drawRect(x, y, box_width, box_height)
+
+        # Vẽ text
+        painter.setPen(QPen(text_color))
+        text_rect = QRect(x + 5, y + 5, box_width - 10, box_height - 10)
+        painter.drawText(text_rect, Qt.AlignCenter, text)
+
     def _draw_block_diagram_connections(self, painter, compartments, sight_column,
                                       comp_width, comp_width_center, comp_height, sight_column_height):
         """Vẽ các kết nối orthogonal (vuông góc) giữa các components theo block diagram."""
@@ -303,6 +423,9 @@ class SystemDiagramRenderer:
                 'bottom': actual_y + box_height
             }
 
+        # Thêm motor cabinets vào component_positions
+        self._add_motor_cabinet_positions(component_positions, compartments, comp_width)
+
         # Định nghĩa các kết nối với edge cụ thể
         connections = self._get_connection_definitions()
 
@@ -330,7 +453,7 @@ class SystemDiagramRenderer:
                 straight_distance = 50
 
             if start_comp in component_positions and end_comp in component_positions:
-                if start_comp == 'hop_quang_dien_tu' or start_comp == 'hop_dien':
+                if start_comp in ['hop_quang_dien_tu', 'hop_dien', 'dong_co_huong', 'dong_co_tam_1', 'dong_co_tam_2', 'dong_co_huong_1', 'dong_co_huong_2']:
                     self._draw_orthogonal_connection_special(painter,
                                                component_positions[start_comp],
                                                component_positions[end_comp],
@@ -384,6 +507,12 @@ class SystemDiagramRenderer:
             ('khoi_giao_tiep_hang_hai', 'hop_quang_dien_tu', 1, 3, 0, 0),
             ('hop_quang_dien_tu', 'ban_dieu_khien_chinh_tu_xa', 2, 2, 0, -10, 40),
             ('hop_dien', 'ban_dieu_khien_chinh_tu_xa', 2, 2, 0, -5, 50),
+
+            # Motor cabinet connections
+            ('dong_co_huong_1', 'hop_dan_dong_kenh_huong_1', 4, 4, 0, -5, 31),
+            ('dong_co_tam_1', 'hop_dan_dong_kenh_tam_1' , 4, 4, 0, -5, 26),
+            ('dong_co_huong_2', 'hop_dan_dong_kenh_huong_2', 2, 2, 0, -5, 31),
+            ('dong_co_tam_2', 'hop_dan_dong_kenh_tam_2', 2, 2, 0, -5, 26),
         ]
 
     def _normalize_component_name(self, name, compartment_title=None):
@@ -409,7 +538,9 @@ class SystemDiagramRenderer:
             'bàn điều khiển chính từ xa': 'ban_dieu_khien_chinh_tu_xa',
             'bảng điện chính': 'bang_dien_chinh',
             'hộp điện': 'hop_dien',
-            'hộp quang điện tử': 'hop_quang_dien_tu'
+            'hộp quang điện tử': 'hop_quang_dien_tu',
+            'động cơ hướng': 'dong_co_huong',
+            'động cơ tầm': 'dong_co_tam'
         }
 
         # Tìm mapping cơ bản
@@ -433,7 +564,102 @@ class SystemDiagramRenderer:
                                'hop_dan_dong_kenh_huong', 'hop_dan_dong_kenh_tam', 'ban_dieu_khien_tai_cho']:
                     base_name += '_2'
 
+        # Special handling for motor cabinets (they don't have compartment_title but need side suffixes)
+        # Motor cabinets are positioned based on their association with compartments 1 and 2
+        if base_name in ['dong_co_huong', 'dong_co_tam']:
+            # For now, we'll handle this in the connection drawing logic
+            # The actual suffix will be determined by which compartment they're associated with
+            pass
+
         return base_name
+
+    def _add_motor_cabinet_positions(self, component_positions, compartments, comp_width):
+        """Thêm vị trí motor cabinets vào component_positions dictionary."""
+        # Tính kích thước motor cabinet
+        metrics = QFontMetrics(QFont())
+        motor_lines = 'Động cơ\nhướng'.split('\n')
+        motor_max_width = max(len(line) * 8 for line in motor_lines)  # Approximate width
+        motor_width = motor_max_width + 20
+        motor_height = len(motor_lines) * 15 + 10  # Approximate height
+
+        # Tìm vị trí motor cabinets dựa trên drive boxes
+        for i, comp in enumerate(compartments):
+            if i == 0 or i == 2:  # Chỉ cho khoang 1 và 2
+                comp_x = comp['x']
+                comp_y = comp['y']
+
+                # Tìm vị trí drive boxes
+                huong_pos = None
+                tam_pos = None
+
+                for box_name, box_x, box_y in comp['boxes']:
+                    if 'kềnh hướng' in box_name:
+                        huong_pos = (comp_x + box_x, comp_y + box_y)
+                    elif 'kềnh tâm' in box_name:
+                        tam_pos = (comp_x + box_x, comp_y + box_y)
+
+                if huong_pos and tam_pos:
+                    if i == 0:  # Khoang 1 (bên trái)
+                        # Motor cabinet hướng
+                        motor_huong_x = huong_pos[0]
+                        motor_huong_y = huong_pos[1] - 200
+                        component_positions['dong_co_huong_1'] = {
+                            'center_x': motor_huong_x + motor_width // 2,
+                            'center_y': motor_huong_y + motor_height // 2,
+                            'width': motor_width,
+                            'height': motor_height,
+                            'left': motor_huong_x,
+                            'right': motor_huong_x + motor_width,
+                            'top': motor_huong_y,
+                            'bottom': motor_huong_y + motor_height
+                        }
+
+                        # Motor cabinet tầm
+                        motor_tam_x = tam_pos[0]
+                        motor_tam_y = tam_pos[1] - 200
+                        component_positions['dong_co_tam_1'] = {
+                            'center_x': motor_tam_x + motor_width // 2,
+                            'center_y': motor_tam_y + motor_height // 2,
+                            'width': motor_width,
+                            'height': motor_height,
+                            'left': motor_tam_x,
+                            'right': motor_tam_x + motor_width,
+                            'top': motor_tam_y,
+                            'bottom': motor_tam_y + motor_height
+                        }
+
+                    elif i == 2:  # Khoang 2 (bên phải) - áp dụng mirroring
+                        # Tính vị trí mirrored cho motor cabinet hướng
+                        original_box_x = huong_pos[0] - comp_x
+                        mirrored_huong_x = comp_width - (original_box_x + motor_width)
+                        motor_huong_x = comp_x + mirrored_huong_x
+                        motor_huong_y = huong_pos[1] - 200
+                        component_positions['dong_co_huong_2'] = {
+                            'center_x': motor_huong_x + motor_width // 2,
+                            'center_y': motor_huong_y + motor_height // 2,
+                            'width': motor_width,
+                            'height': motor_height,
+                            'left': motor_huong_x,
+                            'right': motor_huong_x + motor_width,
+                            'top': motor_huong_y,
+                            'bottom': motor_huong_y + motor_height
+                        }
+
+                        # Tính vị trí mirrored cho motor cabinet tầm
+                        original_tam_x = tam_pos[0] - comp_x
+                        mirrored_tam_x = comp_width - (original_tam_x + motor_width)
+                        motor_tam_x = comp_x + mirrored_tam_x
+                        motor_tam_y = tam_pos[1] - 200
+                        component_positions['dong_co_tam_2'] = {
+                            'center_x': motor_tam_x + motor_width // 2,
+                            'center_y': motor_tam_y + motor_height // 2,
+                            'width': motor_width,
+                            'height': motor_height,
+                            'left': motor_tam_x,
+                            'right': motor_tam_x + motor_width,
+                            'top': motor_tam_y,
+                            'bottom': motor_tam_y + motor_height
+                        }
 
     def _get_point_from_edge(self, pos, edge):
         """Lấy điểm kết nối từ cạnh được chỉ định."""
@@ -590,3 +816,4 @@ class SystemDiagramRenderer:
 
             painter.drawLine(start_point[0], start_point[1], intermediate_point[0], intermediate_point[1])
             painter.drawLine(intermediate_point[0], intermediate_point[1], final_point[0], final_point[1])
+

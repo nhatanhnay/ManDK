@@ -33,7 +33,11 @@ NODE_NAME_TO_ID = {
 
     # Cột ngắm
     'Hộp điện': 'hop_dien',
-    'Hộp quang\nđiện tử': 'hop_quang_dien_tu'
+    'Hộp quang\nđiện tử': 'hop_quang_dien_tu',
+
+    # Tủ động cơ (riêng biệt)
+    'Động cơ\nhướng': 'dong_co_huong',
+    'Động cơ\ntầm': 'dong_co_tam'
 }
 
 def get_node_id_for_compartment(node_name: str, compartment_title: str) -> str:

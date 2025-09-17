@@ -102,9 +102,14 @@ class InfoPanelRenderer:
         painter.setPen(QPen(text_color))
         painter.drawText(status_rect, Qt.AlignCenter, status_text)
 
-        # Hình ảnh thiết bị (cũng rộng hơn)
-        image_rect = QRect(sidebar_x, sidebar_y + 50, sidebar_width - 20, 240)
+        # Hình ảnh thiết bị (thu gọn chiều cao để có chỗ cho error box)
+        image_rect = QRect(sidebar_x, sidebar_y + 50, sidebar_width - 20, 150)
         self._draw_device_image(painter, image_rect, selected_node_data)
+
+        # Ô thông tin lỗi (dưới hình ảnh với khoảng cách nhỏ)
+        error_box_y = sidebar_y + 50 + 150 + 5   # image_y + image_height + small gap
+        error_box_rect = QRect(sidebar_x, error_box_y, sidebar_width - 20, 70)
+        self._draw_error_info_box(painter, error_box_rect, selected_node_data)
 
     def _draw_device_image(self, painter, rect, selected_node_data):
         """Vẽ hình ảnh thiết bị từ assets."""
@@ -375,6 +380,86 @@ class InfoPanelRenderer:
 
         painter.drawLine(x1, y1, x2, y2)
         painter.drawLine(x2, y1, x1, y2)
+
+    def _draw_error_info_box(self, painter, rect, selected_node_data):
+        """Vẽ ô thông tin lỗi dưới hình ảnh node."""
+        # Nền ô thông tin lỗi
+        if selected_node_data.has_error:
+            # Nền đỏ nhạt khi có lỗi
+            bg_color = QColor(80, 30, 30)  # Đỏ đậm
+            border_color = QColor(220, 60, 60)  # Đỏ sáng
+            text_color = QColor(255, 255, 255)  # Trắng
+        else:
+            # Nền xanh nhạt khi bình thường
+            bg_color = QColor(30, 60, 30)  # Xanh đậm
+            border_color = QColor(60, 180, 60)  # Xanh sáng
+            text_color = QColor(255, 255, 255)  # Trắng
+
+        # Vẽ nền và viền
+        painter.setPen(QPen(border_color, 2))
+        painter.setBrush(QBrush(bg_color))
+        painter.drawRect(rect)
+
+        # Tiêu đề (compact)
+        painter.setFont(QFont("Arial", 8, QFont.Bold))
+        painter.setPen(QPen(text_color))
+        title_rect = QRect(rect.left() + 3, rect.top() + 3, rect.width() - 6, 15)
+
+        if selected_node_data.has_error:
+            painter.drawText(title_rect, Qt.AlignCenter, "THÔNG TIN LỖI")
+        else:
+            painter.drawText(title_rect, Qt.AlignCenter, "TRẠNG THÁI BÌNH THƯỜNG")
+
+        # Nội dung lỗi (compact)
+        content_rect = QRect(rect.left() + 5, rect.top() + 18, rect.width() - 10, rect.height() - 21)
+        painter.setFont(QFont("Arial", 7))
+
+        if selected_node_data.has_error:
+            # Lấy danh sách lỗi từ modules
+            error_messages = self._get_node_error_messages(selected_node_data)
+
+            if error_messages:
+                # Hiển thị tối đa 3 lỗi để vừa với chiều cao nhỏ hơn
+                display_errors = error_messages[:3]
+                error_text = "\n".join([f"• {msg}" for msg in display_errors])
+
+                if len(error_messages) > 3:
+                    error_text += f"\n• ... +{len(error_messages) - 3} lỗi khác"
+
+                painter.drawText(content_rect, Qt.AlignTop | Qt.TextWordWrap, error_text)
+            else:
+                painter.drawText(content_rect, Qt.AlignTop, "• Lỗi hệ thống chung")
+        else:
+            painter.drawText(content_rect, Qt.AlignTop, "• Tất cả module hoạt động bình thường\n• Không phát hiện lỗi")
+
+    def _get_node_error_messages(self, selected_node_data):
+        """Lấy danh sách thông báo lỗi từ tất cả modules của node."""
+        error_messages = []
+
+        try:
+            # Import module manager - improved import handling
+            from data_management.module_data_manager import module_manager
+
+            # Lấy modules của node
+            node_modules = module_manager.get_node_modules(selected_node_data.node_id)
+
+            for module in node_modules.values():
+                if module.status == "error" and module.error_messages:
+                    for error_msg in module.error_messages:
+                        # Format: "Module X: error message"
+                        formatted_msg = f"{module.name}: {error_msg}"
+                        error_messages.append(formatted_msg)
+
+            # Thêm lỗi node riêng nếu có
+            if hasattr(selected_node_data, 'error_messages') and selected_node_data.error_messages:
+                for error_msg in selected_node_data.error_messages:
+                    error_messages.append(f"Node: {error_msg}")
+
+        except Exception as e:
+            # Fallback nếu không thể lấy thông tin module
+            error_messages = ["Không thể lấy thông tin lỗi chi tiết"]
+
+        return error_messages
 
     def get_parameter_boxes(self):
         """Return the list of parameter boxes for click detection."""
