@@ -130,7 +130,7 @@ class InfoTabEventHandler:
     def _open_threshold_editor(self, param_box, global_pos):
         """Open threshold editor dialog for parameter."""
         try:
-            from data_management.module_threshold_manager import get_threshold_for_parameter, update_module_threshold
+            from data_management.unified_threshold_manager import get_threshold_for_parameter, update_module_threshold
 
             parameter_name = param_box['parameter_name']
             module_name = param_box['module_name']

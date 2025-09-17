@@ -29,6 +29,13 @@ class FireControl(QtCore.QObject):
         with open(resource_path(r'config.yaml'), 'r') as file:
             self.config = yaml.safe_load(file)
 
+        # Load unified configuration system
+        try:
+            from data_management.unified_threshold_manager import unified_threshold_manager
+            unified_threshold_manager.load_config()
+        except ImportError:
+            print("Không thể tải unified threshold manager")
+
     def setupUi(self, MainWindow):
         # Đảm bảo mw_width và total_h luôn có giá trị trước khi dùng ở bất kỳ đâu
         try:

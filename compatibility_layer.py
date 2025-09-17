@@ -19,7 +19,7 @@ try:
     import data_management.module_data_manager as module_data
     import data_management.configuration_manager as config_manager
     import data_management.node_data_manager as node_data
-    import data_management.module_threshold_manager as module_thresholds
+    import data_management.unified_threshold_manager as module_thresholds
     import data_management.node_mapping_manager as node_mapping
 
     # Register old module names in sys.modules for backwards compatibility

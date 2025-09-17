@@ -5,6 +5,7 @@ Mỗi node có thể có nhiều module, mỗi module có các thông số: đi�
 
 import time
 import json
+import os
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from dataclasses import dataclass, asdict
@@ -72,9 +73,9 @@ class ModuleData:
         self.clear_errors()  # Xóa lỗi cũ trước
         has_errors = False
 
-        # Import threshold manager để lấy ngưỡng mới nhất
+        # Import unified threshold manager để lấy ngưỡng mới nhất
         try:
-            from .module_threshold_manager import is_parameter_normal, get_threshold_for_parameter
+            from .unified_threshold_manager import is_parameter_normal, get_threshold_for_parameter
 
             # Kiểm tra điện áp
             if not is_parameter_normal(self.name, "Điện áp", self.parameters.voltage):
@@ -126,6 +127,9 @@ class ModuleData:
             else:
                 self.status = "normal"
 
+            # Cập nhật trạng thái lỗi của node parent
+            self._update_parent_node_status()
+
         except ImportError:
             # Fallback to old system if threshold manager not available
             has_errors = False
@@ -148,6 +152,9 @@ class ModuleData:
                 self.status = "error"
             else:
                 self.status = "normal"
+
+            # Cập nhật trạng thái lỗi của node parent
+            self._update_parent_node_status()
     
     def add_error(self, message: str):
         """Thêm thông báo lỗi."""
@@ -157,6 +164,21 @@ class ModuleData:
     def clear_errors(self):
         """Xóa tất cả lỗi."""
         self.error_messages.clear()
+
+    def _update_parent_node_status(self):
+        """Cập nhật trạng thái lỗi của node chứa module này."""
+        try:
+            from .node_data_manager import system_data_manager
+
+            # Lấy node parent
+            parent_node = system_data_manager.get_node(self.node_id)
+            if parent_node:
+                # Cập nhật trạng thái lỗi của node dựa trên modules
+                parent_node.update_error_status_from_modules()
+
+        except ImportError:
+            # Không thể import system_data_manager
+            pass
         
     def get_latest_parameters(self) -> ModuleParameters:
         """Lấy thông số mới nhất."""
@@ -182,32 +204,64 @@ class ModuleManager:
         self._initialize_default_modules()
         
     def _initialize_default_modules(self):
-        """Khởi tạo các module từ cấu hình system_config.py."""
-        from .system_configuration import NODE_MODULE_CONFIG
-        
-        for node_id, module_configs in NODE_MODULE_CONFIG.items():
+        """Khởi tạo các module từ cấu hình unified JSON."""
+        try:
+            from .unified_threshold_manager import unified_threshold_manager
+
+            # Get node configurations
+            for node_id, module_names in unified_threshold_manager.config_data.get('node_configurations', {}).items():
+                self.modules[node_id] = {}
+
+                for i, module_name in enumerate(module_names, 1):
+                    module_id = f"{node_id}_module_{i:02d}"
+                    module = ModuleData(module_id, module_name, node_id)
+
+                    # Get default parameters from unified config
+                    default_params = unified_threshold_manager.get_module_default_parameters(module_name)
+
+                    # Initialize parameters from configuration
+                    module.update_parameters(
+                        voltage=default_params.get('voltage', 12.0),
+                        current=default_params.get('current', 2.0),
+                        power=default_params.get('power', 24.0),
+                        resistance=default_params.get('resistance', 50.0),
+                        temperature=default_params.get('temperature', 35.0)
+                    )
+
+                    # Get threshold info for validation (backward compatibility)
+                    voltage_threshold = unified_threshold_manager.get_effective_threshold(module_name, "Điện áp")
+                    current_threshold = unified_threshold_manager.get_effective_threshold(module_name, "Dòng điện")
+                    temp_threshold = unified_threshold_manager.get_effective_threshold(module_name, "Nhiệt độ")
+
+                    module.min_voltage = voltage_threshold.get('min_normal', 8.0)
+                    module.max_voltage = voltage_threshold.get('max_normal', 15.0)
+                    module.max_current = current_threshold.get('max_normal', 8.0)
+                    module.max_temperature = temp_threshold.get('max_normal', 70.0)
+                    module.description = unified_threshold_manager.get_module_description(module_name)
+
+                    self.modules[node_id][module_id] = module
+
+        except ImportError as e:
+            print(f"Failed to import unified threshold manager: {e}")
+            # Fallback to minimal initialization
+            self._fallback_initialization()
+
+    def _fallback_initialization(self):
+        """Fallback initialization if unified config is not available."""
+        # Create basic modules for main nodes
+        basic_nodes = ['bang_dien_chinh', 'ban_dieu_khien_chinh', 'ac_quy_1']
+
+        for node_id in basic_nodes:
             self.modules[node_id] = {}
-            
-            for i, module_config in enumerate(module_configs, 1):
+            for i in range(1, 5):  # Create 4 basic modules per node
                 module_id = f"{node_id}_module_{i:02d}"
-                module = ModuleData(module_id, module_config.name, node_id)
-                
-                # Khởi tạo thông số từ cấu hình
+                module = ModuleData(module_id, f"module_{i}", node_id)
+
                 module.update_parameters(
-                    voltage=module_config.default_voltage,
-                    current=module_config.default_current,
-                    power=module_config.default_power,
-                    resistance=module_config.default_resistance,
-                    temperature=module_config.default_temperature
+                    voltage=12.0, current=2.0, power=24.0,
+                    resistance=50.0, temperature=35.0
                 )
-                
-                # Lưu thông tin ngưỡng để validation
-                module.min_voltage = module_config.min_voltage
-                module.max_voltage = module_config.max_voltage
-                module.max_current = module_config.max_current
-                module.max_temperature = module_config.max_temperature
-                module.description = module_config.description
-                
+
                 self.modules[node_id][module_id] = module
                 
     def get_node_modules(self, node_id: str) -> Dict[str, ModuleData]:

@@ -13,15 +13,14 @@ def debug_threshold_checking():
     print("=== Debugging Threshold vs Parameter Values ===\n")
 
     from data_management.module_data_manager import module_manager
-    from data_management.module_threshold_manager import (
+    from data_management.unified_threshold_manager import (
         get_threshold_for_parameter,
         is_parameter_normal,
-        DEFAULT_THRESHOLDS,
-        MODULE_TYPE_THRESHOLDS
+        unified_threshold_manager
     )
 
-    print(f"DEFAULT_THRESHOLDS: {DEFAULT_THRESHOLDS}")
-    print(f"MODULE_TYPE_THRESHOLDS: {MODULE_TYPE_THRESHOLDS}")
+    print(f"Unified config loaded: {bool(unified_threshold_manager.config_data)}")
+    print(f"Available modules: {list(unified_threshold_manager.config_data.get('module_configurations', {}).keys())}")
     print()
 
     # Check first few modules

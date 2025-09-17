@@ -337,16 +337,18 @@ class InfoPanelRenderer:
 
     def _get_parameter_status_color(self, label, value, module_name="Module 1"):
         """Xác định màu sắc dựa trên trạng thái thông số."""
-        # Import module thresholds
+        # Import unified threshold manager
         try:
-            from data_management.module_threshold_manager import get_threshold_for_parameter, is_parameter_normal
+            from data_management.unified_threshold_manager import get_threshold_for_parameter, is_parameter_normal
         except ImportError:
             # Fallback nếu không import được
             return QColor(0, 255, 0)
 
         # Lấy giá trị số từ string (bỏ đơn vị)
         try:
-            numeric_value = float(''.join(filter(str.isdigit, value)))
+            # Lấy tất cả ký tự số và dấu chấm thập phân
+            numeric_str = ''.join(c for c in value if c.isdigit() or c == '.')
+            numeric_value = float(numeric_str)
         except:
             return QColor(0, 255, 0)  # Xanh mặc định nếu không parse được
 

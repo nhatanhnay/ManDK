@@ -6,7 +6,7 @@ Cung cấp các hàm tiện ích để thêm, sửa, xóa modules và thông s�
 import json
 import os
 from typing import Dict, List, Optional, Any
-from .system_configuration import NODE_MODULE_CONFIG, ModuleConfig
+from .unified_threshold_manager import unified_threshold_manager
 
 class ConfigManager:
     """Class quản lý cấu hình modules."""
@@ -122,13 +122,14 @@ class ConfigManager:
                     return True
         return False
     
-    def get_effective_config(self) -> Dict[str, List[ModuleConfig]]:
+    def get_effective_config(self) -> Dict[str, List[Dict[str, Any]]]:
         """Lấy cấu hình hiệu lực (base + custom)."""
         effective_config = {}
         
-        # Bắt đầu với cấu hình base
-        for node_id, modules in NODE_MODULE_CONFIG.items():
-            effective_config[node_id] = modules.copy()
+        # Bắt đầu với cấu hình base từ unified system
+        node_configs = unified_threshold_manager.config_data.get('node_configurations', {})
+        for node_id, module_names in node_configs.items():
+            effective_config[node_id] = module_names.copy()
         
         # Áp dụng custom config
         for node_id, node_data in self.custom_config.items():
@@ -290,7 +291,8 @@ def restore_config(backup_file: str):
         # Chuyển đổi thành custom config format
         config_manager.custom_config = {}
         for node_id, modules in backup_data.items():
-            if node_id not in NODE_MODULE_CONFIG:  # Chỉ lưu nodes tùy chỉnh
+            node_configs = unified_threshold_manager.config_data.get('node_configurations', {})
+            if node_id not in node_configs:  # Chỉ lưu nodes tùy chỉnh
                 config_manager.custom_config[node_id] = {
                     'description': f'Node được khôi phục từ backup',
                     'modules': modules

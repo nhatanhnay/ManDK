@@ -51,6 +51,32 @@ class NodeData:
         self.error_codes.clear()
         self.error_messages.clear()
         self.has_error = False
+
+    def update_error_status_from_modules(self):
+        """Cập nhật trạng thái lỗi của node dựa trên trạng thái của các module."""
+        try:
+            from .module_data_manager import module_manager
+
+            # Lấy tất cả modules của node này
+            node_modules = module_manager.get_node_modules(self.node_id)
+
+            # Kiểm tra xem có module nào có lỗi không
+            has_module_errors = False
+            for module in node_modules.values():
+                if module.status == "error" or module.error_messages:
+                    has_module_errors = True
+                    break
+
+            # Cập nhật trạng thái lỗi node
+            if has_module_errors:
+                self.has_error = True
+            elif not has_module_errors and not self.error_messages:
+                # Clear lỗi nếu không có lỗi module và không có lỗi node riêng
+                self.has_error = False
+
+        except ImportError:
+            # Không thể import module_manager
+            pass
         
     def get_current_voltage(self) -> float:
         """Lấy điện áp hiện tại."""
@@ -126,28 +152,23 @@ class SystemDataManager:
         return self.nodes
         
     def simulate_data(self):
-        """Mô phỏng dữ liệu cho các node."""
+        """
+        Mô phỏng dữ liệu cho các node (chỉ cập nhật readings, không tự động tạo lỗi).
+        Lỗi sẽ được xác định bởi threshold checking trong module system.
+        """
         for node in self.nodes.values():
-            # Mô phỏng điện áp (220V ± 10V)
+            # Mô phỏng điện áp (220V ± 10V) - chỉ cập nhật giá trị đo
             base_voltage = 220.0
             voltage = base_voltage + random.uniform(-10, 10)
             node.add_voltage_reading(voltage)
-            
-            # Mô phỏng lỗi ngẫu nhiên (5% xác suất)
-            if random.random() < 0.05:
-                error_codes = ['E001', 'E002', 'E003', 'E004', 'E005']
-                error_messages = [
-                    'Điện áp thấp',
-                    'Quá tải',
-                    'Lỗi kết nối',
-                    'Quá nhiệt',
-                    'Lỗi cảm biến'
-                ]
-                error_code = random.choice(error_codes)
-                error_message = random.choice(error_messages)
-                node.add_error(error_code, error_message)
-            elif random.random() < 0.02:  # 2% xác suất xóa lỗi
-                node.clear_errors()
+
+            # Không tự động tạo lỗi - để module threshold manager xử lý
+            # Lỗi sẽ được tự động phát hiện dựa trên ngưỡng của từng module
+
+    def refresh_all_node_error_statuses(self):
+        """Làm mới trạng thái lỗi của tất cả các node dựa trên module status."""
+        for node in self.nodes.values():
+            node.update_error_status_from_modules()
                 
     def get_node_by_name(self, name: str) -> NodeData:
         """Lấy node theo tên hiển thị."""
