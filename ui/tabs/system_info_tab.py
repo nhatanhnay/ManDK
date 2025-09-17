@@ -49,11 +49,21 @@ class InfoTab(GridBackgroundWidget):
         self.data_timer.timeout.connect(self._update_data)
         self.data_timer.start(DATA_UPDATE_INTERVAL)  # Cập nhật mỗi giây
 
+        # Timer cho animation effect - 60 FPS for smooth animation
+        self.animation_timer = QTimer()
+        self.animation_timer.timeout.connect(self._update_animation)
+        self.animation_timer.start(16)  # ~60 FPS (1000ms / 60 = ~16ms)
+
     def _update_data(self):
         """Cập nhật dữ liệu mô phỏng và refresh display."""
         system_data_manager.simulate_data()
         module_manager.simulate_realtime_data()  # Cập nhật dữ liệu module
         self.update()  # Trigger repaint
+
+    def _update_animation(self):
+        """Cập nhật animation cho connection lines."""
+        if self.system_diagram_renderer.animation_enabled:
+            self.update()  # Trigger repaint for animation
 
     def mousePressEvent(self, event):
         """Xử lý sự kiện click chuột."""

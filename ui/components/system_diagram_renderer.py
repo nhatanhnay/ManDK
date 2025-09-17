@@ -1,7 +1,8 @@
 import sys
 import os
-from PyQt5.QtCore import Qt, QRect
-from PyQt5.QtGui import QPainter, QPen, QColor, QBrush, QFont, QFontMetrics
+import time
+from PyQt5.QtCore import Qt, QRect, QTimer
+from PyQt5.QtGui import QPainter, QPen, QColor, QBrush, QFont, QFontMetrics, QLinearGradient
 import math
 
 # Import from data_management module
@@ -14,6 +15,11 @@ class SystemDiagramRenderer:
 
     def __init__(self):
         self.node_regions = []
+        # Animation properties for gradient wave effect
+        self.animation_start_time = time.time()
+        self.wave_speed = 50.0  # Speed of wave movement (pixels per second) - increased for visibility
+        self.wave_length = 80  # Length of the gradient wave - reduced for more frequent waves
+        self.animation_enabled = True
 
     def draw_system_diagram(self, painter, widget_size):
         """Vẽ sơ đồ hệ thống fire control."""
@@ -573,6 +579,178 @@ class SystemDiagramRenderer:
 
         return base_name
 
+    def _draw_animated_connection_path(self, painter, path_segments, base_color=None):
+        """Vẽ đường kết nối hoàn chỉnh với hiệu ứng wave liên tục."""
+        if not self.animation_enabled or not path_segments:
+            # Fallback to normal lines if animation disabled
+            for x1, y1, x2, y2 in path_segments:
+                painter.drawLine(x1, y1, x2, y2)
+            return
+
+        if base_color is None:
+            base_color = QColor(100, 200, 255)  # Default blue
+
+        # Calculate total path length and segment positions
+        total_length = 0
+        segment_info = []
+
+        for x1, y1, x2, y2 in path_segments:
+            segment_length = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            segment_info.append({
+                'start_pos': total_length,
+                'end_pos': total_length + segment_length,
+                'length': segment_length,
+                'coords': (x1, y1, x2, y2)
+            })
+            total_length += segment_length
+
+        if total_length == 0:
+            return
+
+        # Calculate current animation time and wave position
+        current_time = time.time()
+        elapsed_time = current_time - self.animation_start_time
+
+        # Wave parameters for continuous flow
+        wave_length = 60  # Wave length in pixels
+        wave_half_length = wave_length / 2
+        wave_spacing = 120  # Distance between wave centers (smaller = more waves)
+
+        # Calculate how many waves we need to cover the path
+        num_waves = max(2, int(total_length / wave_spacing) + 2)  # At least 2 waves
+
+        # Base cycle time for wave movement
+        cycle_time = 2.5  # Time for wave to travel full path
+
+        # Calculate all wave positions
+        wave_positions = []
+        cycle_progress = (elapsed_time % cycle_time) / cycle_time
+
+        for i in range(num_waves):
+            # Each wave is offset by wave_spacing
+            wave_offset = i * wave_spacing
+            base_position = total_length + wave_half_length - cycle_progress * (total_length + wave_length)
+            wave_pos = base_position - wave_offset
+            wave_positions.append(wave_pos)
+
+        # Colors
+        normal_color = QColor(base_color)
+        normal_color.setAlpha(60)
+
+        bright_r = min(255, base_color.red() + 50)
+        bright_g = min(255, base_color.green() + 50)
+        bright_b = min(255, base_color.blue() + 50)
+        bright_color = QColor(bright_r, bright_g, bright_b)
+        bright_color.setAlpha(255)
+
+        medium_color = QColor(base_color)
+        medium_color.setAlpha(180)
+
+        # Draw each segment with multiple waves
+        for segment in segment_info:
+            x1, y1, x2, y2 = segment['coords']
+            seg_start = segment['start_pos']
+            seg_end = segment['end_pos']
+            seg_length = segment['length']
+
+            if seg_length == 0:
+                continue
+
+            # Check if any wave affects this segment
+            affecting_waves = []
+            for wave_pos in wave_positions:
+                wave_start_abs = wave_pos - wave_half_length
+                wave_end_abs = wave_pos + wave_half_length
+
+                # Check if this wave overlaps with segment and is in valid range
+                wave_overlaps = not (wave_end_abs < seg_start or wave_start_abs > seg_end)
+                wave_in_valid_range = 0 <= wave_pos <= total_length
+
+                if wave_overlaps and wave_in_valid_range:
+                    affecting_waves.append({
+                        'position': wave_pos,
+                        'start': wave_start_abs,
+                        'end': wave_end_abs
+                    })
+
+            if not affecting_waves:
+                # No waves on this segment - draw normal line
+                pen = QPen(normal_color, 3)
+                painter.setPen(pen)
+                painter.drawLine(x1, y1, x2, y2)
+            else:
+                # One or more waves affect this segment - create combined gradient
+                gradient = QLinearGradient(x1, y1, x2, y2)
+
+                # Start with base color
+                gradient.setColorAt(0.0, normal_color)
+                gradient.setColorAt(1.0, normal_color)
+
+                # Create gradient stops for all affecting waves
+                gradient_stops = {}  # position -> color
+
+                for wave in affecting_waves:
+                    wave_pos = wave['position']
+                    wave_start_abs = wave['start']
+                    wave_end_abs = wave['end']
+
+                    # Convert to segment coordinates
+                    wave_seg_start = max(0.0, (wave_start_abs - seg_start) / seg_length)
+                    wave_seg_end = min(1.0, (wave_end_abs - seg_start) / seg_length)
+                    wave_seg_center = max(0.0, min(1.0, (wave_pos - seg_start) / seg_length))
+
+                    # Add gradient stops for this wave if center is in segment
+                    if 0.0 <= wave_seg_center <= 1.0 and seg_start <= wave_pos <= seg_end:
+                        wave_quarter_size = 0.06
+
+                        # Calculate wave influence points
+                        leading_edge = max(0.0, wave_seg_center - wave_quarter_size)
+                        trailing_edge = min(1.0, wave_seg_center + wave_quarter_size)
+
+                        # Add to gradient stops (brightest wins if overlap)
+                        if leading_edge > 0:
+                            pos_key = round(leading_edge * 1000)  # Avoid float precision issues
+                            if pos_key not in gradient_stops or gradient_stops[pos_key].alpha() < medium_color.alpha():
+                                gradient_stops[pos_key] = medium_color
+
+                        center_key = round(wave_seg_center * 1000)
+                        if center_key not in gradient_stops or gradient_stops[center_key].alpha() < bright_color.alpha():
+                            gradient_stops[center_key] = bright_color
+
+                        if trailing_edge < 1:
+                            pos_key = round(trailing_edge * 1000)
+                            if pos_key not in gradient_stops or gradient_stops[pos_key].alpha() < medium_color.alpha():
+                                gradient_stops[pos_key] = medium_color
+
+                # Apply all gradient stops
+                for pos_key, color in gradient_stops.items():
+                    position = pos_key / 1000.0
+                    gradient.setColorAt(position, color)
+
+                # Draw segment with combined gradient
+                pen = QPen(QBrush(gradient), 3)
+                painter.setPen(pen)
+                painter.drawLine(x1, y1, x2, y2)
+
+    def _draw_animated_line(self, painter, x1, y1, x2, y2, base_color=None):
+        """Wrapper for single line - calls the path-based method."""
+        path_segments = [(x1, y1, x2, y2)]
+        self._draw_animated_connection_path(painter, path_segments, base_color)
+
+    def enable_animation(self, enabled=True):
+        """Enable or disable connection line animation."""
+        self.animation_enabled = enabled
+        if enabled:
+            self.animation_start_time = time.time()
+
+    def set_wave_speed(self, speed):
+        """Set the speed of wave animation (pixels per second)."""
+        self.wave_speed = speed
+
+    def set_wave_length(self, length):
+        """Set the length of the gradient wave."""
+        self.wave_length = length
+
     def _add_motor_cabinet_positions(self, component_positions, compartments, comp_width):
         """Thêm vị trí motor cabinets vào component_positions dictionary."""
         # Tính kích thước motor cabinet
@@ -745,17 +923,25 @@ class SystemDiagramRenderer:
             inter_a = (start_point[0], start_point[1] + dir_sign * straight_distance)
             inter_b = (shared_x, inter_a[1])
 
-            painter.drawLine(start_point[0], start_point[1], inter_a[0], inter_a[1])
-            painter.drawLine(inter_a[0], inter_a[1], inter_b[0], inter_b[1])
-            painter.drawLine(inter_b[0], inter_b[1], final_point[0], final_point[1])
+            # Draw as continuous path
+            path_segments = [
+                (start_point[0], start_point[1], inter_a[0], inter_a[1]),
+                (inter_a[0], inter_a[1], inter_b[0], inter_b[1]),
+                (inter_b[0], inter_b[1], final_point[0], final_point[1])
+            ]
+            self._draw_animated_connection_path(painter, path_segments)
         else:
             dir_sign = 1 if start_direction == 2 else -1
             inter_a = (start_point[0] + dir_sign * straight_distance, start_point[1])
             inter_b = (inter_a[0], final_point[1])
 
-            painter.drawLine(start_point[0], start_point[1], inter_a[0], inter_a[1])
-            painter.drawLine(inter_a[0], inter_a[1], inter_b[0], final_point[1])
-            painter.drawLine(inter_b[0], final_point[1], final_point[0], final_point[1])
+            # Draw as continuous path
+            path_segments = [
+                (start_point[0], start_point[1], inter_a[0], inter_a[1]),
+                (inter_a[0], inter_a[1], inter_b[0], final_point[1]),
+                (inter_b[0], final_point[1], final_point[0], final_point[1])
+            ]
+            self._draw_animated_connection_path(painter, path_segments)
 
     def _draw_orthogonal_connection(self, painter, start_pos, end_pos, start_edge=None, end_edge=None,
                                   pos_offset_start=0, pos_offset_end=0):
@@ -778,7 +964,7 @@ class SystemDiagramRenderer:
                 start_vertical_point = (start_pos['center_x'], start_pos['top'])
                 end_vertical_point = (end_pos['center_x'], end_pos['bottom'])
 
-            painter.drawLine(start_vertical_point[0], start_vertical_point[1],
+            self._draw_animated_line(painter, start_vertical_point[0], start_vertical_point[1],
                            end_vertical_point[0], end_vertical_point[1])
         elif vertical_distance <= alignment_threshold:
             # Thẳng hàng ngang
@@ -789,7 +975,7 @@ class SystemDiagramRenderer:
                 start_side_point = (start_pos['left'], start_pos['center_y'])
                 end_side_point = (end_pos['right'], end_pos['center_y'])
 
-            painter.drawLine(start_side_point[0], start_side_point[1],
+            self._draw_animated_line(painter, start_side_point[0], start_side_point[1],
                            end_side_point[0], end_side_point[1])
         else:
             # Logic orthogonal phức tạp
@@ -814,6 +1000,10 @@ class SystemDiagramRenderer:
             straight_distance = max(abs(final_x - start_x), abs(final_y - start_y))
             intermediate_point = self._get_intermediate_point(start_point, start_direction, straight_distance)
 
-            painter.drawLine(start_point[0], start_point[1], intermediate_point[0], intermediate_point[1])
-            painter.drawLine(intermediate_point[0], intermediate_point[1], final_point[0], final_point[1])
+            # Draw as continuous path
+            path_segments = [
+                (start_point[0], start_point[1], intermediate_point[0], intermediate_point[1]),
+                (intermediate_point[0], intermediate_point[1], final_point[0], final_point[1])
+            ]
+            self._draw_animated_connection_path(painter, path_segments)
 
