@@ -133,7 +133,7 @@ def refresh_all_module_statuses():
     Làm mới status của tất cả modules sau khi thay đổi ngưỡng.
     """
     try:
-        from data_management.module_data_manager import module_manager
+        from .module_data_manager import module_manager
 
         for node_modules in module_manager.modules.values():
             for module in node_modules.values():

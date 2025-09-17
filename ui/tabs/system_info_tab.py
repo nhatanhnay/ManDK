@@ -41,6 +41,9 @@ class InfoTab(GridBackgroundWidget):
         self.info_panel_renderer = InfoPanelRenderer()
         self.event_handler = InfoTabEventHandler()
 
+        # Set UI refresh callback for threshold updates
+        self.event_handler.set_ui_refresh_callback(self.update)
+
         # Timer để cập nhật dữ liệu và mô phỏng - Refactored to use constant
         self.data_timer = QTimer()
         self.data_timer.timeout.connect(self._update_data)

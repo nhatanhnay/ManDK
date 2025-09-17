@@ -22,6 +22,7 @@ class InfoTabEventHandler:
         self.scroll_offset = 0
         self.max_scroll = 0
         self.parameter_boxes = []  # Store parameter box regions for click detection
+        self.ui_refresh_callback = None  # Callback to trigger UI refresh
 
     def handle_mouse_press(self, event, node_regions, widget_size):
         """Xử lý sự kiện click chuột."""
@@ -148,8 +149,27 @@ class InfoTabEventHandler:
                 # Update thresholds
                 update_module_threshold(node_id, module_name, parameter_name, min_val, max_val)
 
+                # Force UI refresh to show updated status
+                self._trigger_ui_refresh()
+
         except Exception as e:
             print(f"Error opening threshold editor: {e}")
+
+    def set_ui_refresh_callback(self, callback):
+        """Set callback function to trigger UI refresh."""
+        self.ui_refresh_callback = callback
+
+    def _trigger_ui_refresh(self):
+        """Trigger UI refresh after threshold updates."""
+        try:
+            if self.ui_refresh_callback:
+                self.ui_refresh_callback()
+            else:
+                # Fallback: try to find and refresh
+                from PyQt5.QtWidgets import QApplication
+                QApplication.processEvents()
+        except Exception as e:
+            print(f"Error triggering UI refresh: {e}")
 
     def update_parameter_boxes(self, parameter_boxes):
         """Update the list of parameter boxes for click detection."""
