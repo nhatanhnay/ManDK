@@ -11,7 +11,7 @@ class ModuleConfig:
     """Cấu hình của một module."""
     name: str
     default_voltage: float = 12.0      # Điện áp mặc định (V)
-    default_current: float = 2.0       # Dòng điện mặc định (A) 
+    default_current: float = 2.0       # Dòng điện mặc định (A)
     default_power: float = 24.0        # Công suất mặc định (W)
     default_resistance: float = 50.0   # Điện trở mặc định (Ω)
     default_temperature: float = 35.0  # Nhiệt độ mặc định (°C)
@@ -19,6 +19,13 @@ class ModuleConfig:
     max_voltage: float = 15.0          # Ngưỡng điện áp tối đa
     max_current: float = 8.0           # Ngưỡng dòng điện tối đa
     max_temperature: float = 70.0      # Ngưỡng nhiệt độ tối đa
+    # Operational range thresholds (min_normal/max_normal)
+    min_current: float = 0.5           # Ngưỡng dòng điện tối thiểu bình thường
+    min_power: float = 1.0             # Ngưỡng công suất tối thiểu bình thường
+    max_power: float = 50.0            # Ngưỡng công suất tối đa bình thường
+    min_resistance: float = 10.0       # Ngưỡng điện trở tối thiểu bình thường
+    max_resistance: float = 100.0      # Ngưỡng điện trở tối đa bình thường
+    min_temperature: float = 0.0       # Ngưỡng nhiệt độ tối thiểu bình thường
     description: str = ""              # Mô tả chức năng module
 
 # Refactored: Import node configurations from separate module - Updated path

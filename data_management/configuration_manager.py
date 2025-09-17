@@ -147,6 +147,13 @@ class ConfigManager:
                     max_voltage=module_data.get('max_voltage', 15.0),
                     max_current=module_data.get('max_current', 8.0),
                     max_temperature=module_data.get('max_temperature', 70.0),
+                    # Add the new threshold fields
+                    min_current=module_data.get('min_current', 0.5),
+                    min_power=module_data.get('min_power', 1.0),
+                    max_power=module_data.get('max_power', 50.0),
+                    min_resistance=module_data.get('min_resistance', 10.0),
+                    max_resistance=module_data.get('max_resistance', 100.0),
+                    min_temperature=module_data.get('min_temperature', 0.0),
                     description=module_data.get('description', '')
                 )
                 effective_config[node_id].append(module_config)
@@ -164,29 +171,38 @@ def add_custom_node(node_id: str, description: str = ""):
         config_manager.save_custom_config()
     return result
 
-def add_custom_module(node_id: str, name: str, voltage: float = 12.0, current: float = 2.0, 
+def add_custom_module(node_id: str, name: str, voltage: float = 12.0, current: float = 2.0,
                      power: float = None, resistance: float = 50.0, temperature: float = 35.0,
-                     min_voltage: float = 8.0, max_voltage: float = 15.0, 
-                     max_current: float = 8.0, max_temperature: float = 70.0,
+                     min_voltage: float = 8.0, max_voltage: float = 15.0,
+                     min_current: float = 0.5, max_current: float = 8.0,
+                     min_power: float = 1.0, max_power: float = 50.0,
+                     min_resistance: float = 10.0, max_resistance: float = 100.0,
+                     min_temperature: float = 0.0, max_temperature: float = 70.0,
                      description: str = ""):
     """Thêm module tùy chỉnh vào node."""
     if power is None:
         power = voltage * current
-    
+
     module_config = {
         'name': name,
         'default_voltage': voltage,
-        'default_current': current, 
+        'default_current': current,
         'default_power': power,
         'default_resistance': resistance,
         'default_temperature': temperature,
         'min_voltage': min_voltage,
         'max_voltage': max_voltage,
+        'min_current': min_current,
         'max_current': max_current,
+        'min_power': min_power,
+        'max_power': max_power,
+        'min_resistance': min_resistance,
+        'max_resistance': max_resistance,
+        'min_temperature': min_temperature,
         'max_temperature': max_temperature,
         'description': description
     }
-    
+
     result = config_manager.add_module_to_node(node_id, module_config)
     if result:
         config_manager.save_custom_config()
@@ -349,3 +365,7 @@ def quick_add_sensor_module(node_id: str, name: str, description: str = ""):
         power=6.0,
         description=description or f"Module cảm biến {name}"
     )
+
+def change_config_module(node_id: str, module_name: str, parameter: str, value: Any):
+    """Thay đổi thông số module nhanh chóng."""
+    return update_module_parameter(node_id, module_name, parameter, value)

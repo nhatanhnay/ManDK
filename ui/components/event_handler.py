@@ -5,6 +5,7 @@ from PyQt5.QtCore import Qt, QRect
 # Import from data_management module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from data_management import system_data_manager
+from ui.widgets.threshold_editor_dialog import show_threshold_editor
 
 
 class InfoTabEventHandler:
@@ -20,6 +21,7 @@ class InfoTabEventHandler:
         self.scrolling = False
         self.scroll_offset = 0
         self.max_scroll = 0
+        self.parameter_boxes = []  # Store parameter box regions for click detection
 
     def handle_mouse_press(self, event, node_regions, widget_size):
         """Xử lý sự kiện click chuột."""
@@ -42,6 +44,12 @@ class InfoTabEventHandler:
                     self.scroll_offset = int(scroll_ratio * self.max_scroll)
                     self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll))
                     return True
+
+                # Check if click is on a parameter box to open threshold editor
+                for param_box in self.parameter_boxes:
+                    if param_box['rect'].contains(click_pos):
+                        self._open_threshold_editor(param_box, event.globalPos())
+                        return True
 
                 # Nếu click vào info panel thì không làm gì (để tránh đóng panel)
                 if self.info_panel_rect.contains(click_pos):
@@ -117,6 +125,35 @@ class InfoTabEventHandler:
     def update_scroll_limits(self, max_scroll):
         """Cập nhật giới hạn scroll từ InfoPanelRenderer."""
         self.max_scroll = max_scroll
+
+    def _open_threshold_editor(self, param_box, global_pos):
+        """Open threshold editor dialog for parameter."""
+        try:
+            from data_management.module_threshold_manager import get_threshold_for_parameter, update_module_threshold
+
+            parameter_name = param_box['parameter_name']
+            module_name = param_box['module_name']
+            node_id = param_box.get('node_id', '')
+
+            # Get current thresholds
+            threshold_data = get_threshold_for_parameter(module_name, parameter_name)
+            current_min = threshold_data.get('min_normal', 50.0)
+            current_max = threshold_data.get('max_normal', 50.0)
+
+            # Show dialog
+            result = show_threshold_editor(parameter_name, current_min, current_max)
+
+            if result:
+                min_val, max_val = result
+                # Update thresholds
+                update_module_threshold(node_id, module_name, parameter_name, min_val, max_val)
+
+        except Exception as e:
+            print(f"Error opening threshold editor: {e}")
+
+    def update_parameter_boxes(self, parameter_boxes):
+        """Update the list of parameter boxes for click detection."""
+        self.parameter_boxes = parameter_boxes
 
     def get_state(self):
         """Trả về state hiện tại của event handler."""

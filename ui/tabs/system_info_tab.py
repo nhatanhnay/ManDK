@@ -96,3 +96,7 @@ class InfoTab(GridBackgroundWidget):
             # Cập nhật scroll limits
             if max_scroll is not None:
                 self.event_handler.update_scroll_limits(max_scroll)
+
+            # Update parameter boxes for click detection
+            parameter_boxes = self.info_panel_renderer.get_parameter_boxes()
+            self.event_handler.update_parameter_boxes(parameter_boxes)

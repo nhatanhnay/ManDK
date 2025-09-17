@@ -68,38 +68,89 @@ class ModuleData:
         self._check_status()
         
     def _check_status(self):
-        """Kiểm tra trạng thái module dựa trên thông số và ngưỡng từ config."""
+        """Kiểm tra trạng thái module dựa trên thông số và ngưỡng từ threshold manager."""
         self.clear_errors()  # Xóa lỗi cũ trước
-        
-        # Kiểm tra điện áp
-        if self.parameters.voltage < self.min_voltage:
-            self.status = "error"
-            self.add_error(f"Điện áp thấp ({self.parameters.voltage:.1f}V < {self.min_voltage}V)")
-        elif self.parameters.voltage > self.max_voltage:
-            self.status = "error" 
-            self.add_error(f"Điện áp cao ({self.parameters.voltage:.1f}V > {self.max_voltage}V)")
-        
-        # Kiểm tra dòng điện
-        elif self.parameters.current > self.max_current:
-            if self.parameters.current > self.max_current * 1.2:  # Vượt 20% -> error
+
+        # Import threshold manager để lấy ngưỡng mới nhất
+        try:
+            from .module_threshold_manager import is_parameter_normal, get_threshold_for_parameter
+
+            # Kiểm tra điện áp
+            if not is_parameter_normal(self.name, "Điện áp", self.parameters.voltage):
+                threshold = get_threshold_for_parameter(self.name, "Điện áp")
+                min_val, max_val = threshold['min_normal'], threshold['max_normal']
+                if self.parameters.voltage < min_val:
+                    self.status = "error"
+                    self.add_error(f"Điện áp thấp ({self.parameters.voltage:.1f}V < {min_val}V)")
+                elif self.parameters.voltage > max_val:
+                    self.status = "error"
+                    self.add_error(f"Điện áp cao ({self.parameters.voltage:.1f}V > {max_val}V)")
+
+            # Kiểm tra dòng điện
+            elif not is_parameter_normal(self.name, "Dòng điện", self.parameters.current):
+                threshold = get_threshold_for_parameter(self.name, "Dòng điện")
+                min_val, max_val = threshold['min_normal'], threshold['max_normal']
+                if self.parameters.current < min_val:
+                    self.status = "error"
+                    self.add_error(f"Dòng điện thấp ({self.parameters.current:.1f}A < {min_val}A)")
+                elif self.parameters.current > max_val:
+                    if self.parameters.current > max_val * 1.2:  # Vượt 20% -> error
+                        self.status = "error"
+                        self.add_error(f"Dòng điện quá cao ({self.parameters.current:.1f}A > {max_val}A)")
+                    else:  # Vượt nhưng <20% -> warning
+                        self.status = "warning"
+                        self.add_error(f"Dòng điện cao ({self.parameters.current:.1f}A)")
+
+            # Kiểm tra công suất
+            elif not is_parameter_normal(self.name, "Công suất", self.parameters.power):
+                threshold = get_threshold_for_parameter(self.name, "Công suất")
+                min_val, max_val = threshold['min_normal'], threshold['max_normal']
+                if self.parameters.power < min_val:
+                    self.status = "warning"
+                    self.add_error(f"Công suất thấp ({self.parameters.power:.1f}W < {min_val}W)")
+                elif self.parameters.power > max_val:
+                    self.status = "error"
+                    self.add_error(f"Công suất cao ({self.parameters.power:.1f}W > {max_val}W)")
+
+            # Kiểm tra điện trở
+            elif not is_parameter_normal(self.name, "Điện trở", self.parameters.resistance):
+                threshold = get_threshold_for_parameter(self.name, "Điện trở")
+                min_val, max_val = threshold['min_normal'], threshold['max_normal']
+                if self.parameters.resistance < min_val:
+                    self.status = "warning"
+                    self.add_error(f"Điện trở thấp ({self.parameters.resistance:.1f}Ω < {min_val}Ω)")
+                elif self.parameters.resistance > max_val:
+                    self.status = "warning"
+                    self.add_error(f"Điện trở cao ({self.parameters.resistance:.1f}Ω > {max_val}Ω)")
+
+            # Nếu không có lỗi gì
+            else:
+                self.status = "normal"
+
+        except ImportError:
+            # Fallback to old system if threshold manager not available
+            if self.parameters.voltage < self.min_voltage:
                 self.status = "error"
-                self.add_error(f"Dòng điện quá cao ({self.parameters.current:.1f}A > {self.max_current}A)")
-            else:  # Vượt nhưng <20% -> warning
-                self.status = "warning"
-                self.add_error(f"Dòng điện cao ({self.parameters.current:.1f}A)")
-        
-        # Kiểm tra nhiệt độ
-        elif self.parameters.temperature > self.max_temperature:
-            if self.parameters.temperature > self.max_temperature * 1.1:  # Vượt 10% -> error
+                self.add_error(f"Điện áp thấp ({self.parameters.voltage:.1f}V < {self.min_voltage}V)")
+            elif self.parameters.voltage > self.max_voltage:
                 self.status = "error"
-                self.add_error(f"Quá nhiệt ({self.parameters.temperature:.1f}°C > {self.max_temperature}°C)")
-            else:  # Vượt nhưng <10% -> warning
-                self.status = "warning"
-                self.add_error(f"Nhiệt độ cao ({self.parameters.temperature:.1f}°C)")
-        
-        # Nếu không có lỗi gì
-        else:
-            self.status = "normal"
+                self.add_error(f"Điện áp cao ({self.parameters.voltage:.1f}V > {self.max_voltage}V)")
+            elif self.parameters.current > self.max_current:
+                if self.parameters.current > self.max_current * 1.2:
+                    self.status = "error"
+                    self.add_error(f"Dòng điện quá cao ({self.parameters.current:.1f}A > {self.max_current}A)")
+                else:
+                    self.status = "warning"
+                    self.add_error(f"Dòng điện cao ({self.parameters.current:.1f}A)")
+            elif self.parameters.temperature > self.max_temperature:
+                if self.parameters.temperature > self.max_temperature * 1.1:
+                    self.status = "error"
+                    self.add_error(f"Quá nhiệt ({self.parameters.temperature:.1f}°C > {self.max_temperature}°C)")
+                else:
+                    self.status = "warning"
+                    self.add_error(f"Nhiệt độ cao ({self.parameters.temperature:.1f}°C)")
+            else:
+                self.status = "normal"
     
     def add_error(self, message: str):
         """Thêm thông báo lỗi."""

@@ -22,6 +22,7 @@ class InfoPanelRenderer:
         self.scroll_offset = 0
         self.max_scroll = 0
         self.module_height = 80
+        self.parameter_boxes = []  # Store parameter box regions
 
     def draw_info_panel(self, painter, widget_rect, selected_node_data, info_panel_rect, close_button_rect, scroll_offset):
         """Vẽ panel thông tin node overlay với layout mới."""
@@ -50,7 +51,9 @@ class InfoPanelRenderer:
         self._draw_left_sidebar(painter, selected_node_data, info_panel_rect)
 
         # Vẽ main content area (charts)
-        return self._draw_main_content_area(painter, selected_node_data, info_panel_rect)
+        max_scroll = self._draw_main_content_area(painter, selected_node_data, info_panel_rect)
+
+        return max_scroll
 
     def _draw_panel_header(self, painter, selected_node_data, info_panel_rect, close_button_rect):
         """Vẽ header với tiêu đề và nút X."""
@@ -172,6 +175,9 @@ class InfoPanelRenderer:
 
     def _draw_main_content_area(self, painter, selected_node_data, info_panel_rect):
         """Vẽ vùng nội dung chính với scrollable modules."""
+        # Clear parameter boxes for new render
+        self.parameter_boxes = []
+
         content_x = info_panel_rect.left() + 290
         content_y = info_panel_rect.top() + 60
         content_width = info_panel_rect.width() - 330
@@ -206,7 +212,7 @@ class InfoPanelRenderer:
             # Chỉ vẽ module nếu nó nằm trong vùng hiển thị
             if (current_y + self.module_height >= content_y and
                 current_y <= content_y + content_height):
-                self._draw_module(painter, module_rect, module_data)
+                self._draw_module(painter, module_rect, module_data, selected_node_data.node_id)
 
             current_y += self.module_height + module_spacing
 
@@ -242,7 +248,7 @@ class InfoPanelRenderer:
             thumb_rect = QRect(scrollbar_x, thumb_y, scrollbar_width, thumb_height)
             painter.drawRect(thumb_rect)
 
-    def _draw_module(self, painter, rect, module_data):
+    def _draw_module(self, painter, rect, module_data, node_id=''):
         """Vẽ một module với 4 thông số sử dụng dữ liệu thực."""
         # Tính toán vị trí
         param_width = (rect.width() - 40) // 4
@@ -289,6 +295,14 @@ class InfoPanelRenderer:
         for i, (label, value) in enumerate(parameters):
             param_x = rect.left() + 20 + i * param_width
             param_rect = QRect(param_x, param_y, param_width - 10, param_height)
+
+            # Store parameter box for click detection
+            self.parameter_boxes.append({
+                'rect': param_rect,
+                'parameter_name': label,
+                'module_name': module_data.name,
+                'node_id': node_id
+            })
 
             self._draw_parameter_box(painter, param_rect, label, value, module_data.name)
 
@@ -359,3 +373,7 @@ class InfoPanelRenderer:
 
         painter.drawLine(x1, y1, x2, y2)
         painter.drawLine(x2, y1, x1, y2)
+
+    def get_parameter_boxes(self):
+        """Return the list of parameter boxes for click detection."""
+        return self.parameter_boxes
