@@ -24,11 +24,6 @@
           "max_normal": 100000.0,
           "unit": "W"
         },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
-        },
         "Nhiệt độ": {
           "min_normal": 0.0,
           "max_normal": 70.0,
@@ -61,11 +56,6 @@
           "min_normal": 1.0,
           "max_normal": 50.0,
           "unit": "W"
-        },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
         },
         "Nhiệt độ": {
           "min_normal": 0.0,
@@ -100,11 +90,6 @@
           "max_normal": 50.0,
           "unit": "W"
         },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
-        },
         "Nhiệt độ": {
           "min_normal": 0.0,
           "max_normal": 70.0,
@@ -138,11 +123,6 @@
           "max_normal": 50.0,
           "unit": "W"
         },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
-        },
         "Nhiệt độ": {
           "min_normal": 0.0,
           "max_normal": 70.0,
@@ -152,7 +132,7 @@
       "custom_thresholds": {},
       "description": "Module bảo vệ hệ thống điện chính"
     },
-    "module_1": {
+    "Module nguồn": {
       "default_parameters": {
         "voltage": 12.0,
         "current": 2.0,
@@ -176,11 +156,6 @@
           "max_normal": 50.0,
           "unit": "W"
         },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
-        },
         "Nhiệt độ": {
           "min_normal": 0.0,
           "max_normal": 70.0,
@@ -194,9 +169,9 @@
           "unit": "V"
         }
       },
-      "description": "Module chung"
+      "description": "Module cấp nguồn điện"
     },
-    "module_2": {
+    "Module quạt làm mát": {
       "default_parameters": {
         "voltage": 12.0,
         "current": 1.5,
@@ -220,11 +195,6 @@
           "max_normal": 50.0,
           "unit": "W"
         },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
-        },
         "Nhiệt độ": {
           "min_normal": 0.0,
           "max_normal": 70.0,
@@ -243,9 +213,9 @@
           "unit": "W"
         }
       },
-      "description": "Module chung"
+      "description": "Module quạt làm mát hệ thống"
     },
-    "module_3": {
+    "Module cảm biến": {
       "default_parameters": {
         "voltage": 12.0,
         "current": 1.0,
@@ -269,11 +239,6 @@
           "max_normal": 50.0,
           "unit": "W"
         },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
-        },
         "Nhiệt độ": {
           "min_normal": 0.0,
           "max_normal": 70.0,
@@ -281,9 +246,9 @@
         }
       },
       "custom_thresholds": {},
-      "description": "Module chung"
+      "description": "Module cảm biến và giám sát"
     },
-    "module_4": {
+    "Module truyền thông": {
       "default_parameters": {
         "voltage": 12.0,
         "current": 0.8,
@@ -307,11 +272,6 @@
           "max_normal": 50.0,
           "unit": "W"
         },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
-        },
         "Nhiệt độ": {
           "min_normal": 0.0,
           "max_normal": 70.0,
@@ -319,9 +279,9 @@
         }
       },
       "custom_thresholds": {},
-      "description": "Module chung"
+      "description": "Module truyền thông và giao tiếp"
     },
-    "module_5": {
+    "Module hiển thị": {
       "default_parameters": {
         "voltage": 12.0,
         "current": 0.5,
@@ -345,11 +305,6 @@
           "max_normal": 50.0,
           "unit": "W"
         },
-        "Điện trở": {
-          "min_normal": 10.0,
-          "max_normal": 100.0,
-          "unit": "Ω"
-        },
         "Nhiệt độ": {
           "min_normal": 0.0,
           "max_normal": 70.0,
@@ -363,7 +318,7 @@
           "unit": "A"
         }
       },
-      "description": "Module chung"
+      "description": "Module hiển thị và giao diện"
     }
   },
   "node_configurations": {
@@ -374,141 +329,141 @@
       "Module bảo vệ chính"
     ],
     "ban_dieu_khien_chinh": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị"
     ],
     "ban_dieu_khien_1": [
-      "module_1",
-      "module_2",
-      "module_3"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến"
     ],
     "ban_dieu_khien_2": [
-      "module_1",
-      "module_2",
-      "module_3"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến"
     ],
     "dan_dong_huong_1": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông"
     ],
     "dan_dong_huong_2": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông"
     ],
     "dan_dong_tam_1": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông"
     ],
     "dan_dong_tam_2": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông"
     ],
     "hn11": [
-      "module_1",
-      "module_2"
+      "Module nguồn",
+      "Module quạt làm mát"
     ],
     "hn12": [
-      "module_1",
-      "module_2"
+      "Module nguồn",
+      "Module quạt làm mát"
     ],
     "hn21": [
-      "module_1",
-      "module_2"
+      "Module nguồn",
+      "Module quạt làm mát"
     ],
     "hn22": [
-      "module_1",
-      "module_2"
+      "Module nguồn",
+      "Module quạt làm mát"
     ],
     "giao_tiep_hang_hai": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông"
     ],
     "ac_quy_1": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị"
     ],
     "ac_quy_2": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị"
     ],
     "bien_ap_1": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông"
     ],
     "bien_ap_2": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông"
     ],
     "phan_phoi_1": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5",
-      "module_6"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị",
+      "Module bảo vệ chính"
     ],
     "phan_phoi_2": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5",
-      "module_6"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị",
+      "Module bảo vệ chính"
     ],
     "dieu_khien_1": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị"
     ],
     "dieu_khien_2": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị"
     ],
     "hop_dien": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5",
-      "module_6"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị",
+      "Module bảo vệ chính"
     ],
     "hop_quang_dien_tu": [
-      "module_1",
-      "module_2",
-      "module_3",
-      "module_4",
-      "module_5",
-      "module_6",
-      "module_7",
-      "module_8"
+      "Module nguồn",
+      "Module quạt làm mát",
+      "Module cảm biến",
+      "Module truyền thông",
+      "Module hiển thị",
+      "Module bảo vệ chính",
+      "Module đo lường điện",
+      "Module UPS"
     ]
   }
 }

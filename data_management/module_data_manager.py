@@ -1,6 +1,6 @@
 """
 Module quản lý dữ liệu chi tiết của các module trong từng node.
-Mỗi node có thể có nhiều module, mỗi module có các thông số: điện áp, dòng điện, công suất, điện trở.
+Mỗi node có thể có nhiều module, mỗi module có các thông số: điện áp, dòng điện, công suất, nhiệt độ.
 """
 
 import time
@@ -16,8 +16,7 @@ class ModuleParameters:
     voltage: float = 0.0        # Điện áp (V)
     current: float = 0.0        # Dòng điện (A)
     power: float = 0.0          # Công suất (W)
-    resistance: float = 0.0     # Điện trở (Ω)
-    temperature: float = 0.0    # Nhiệt độ (°C) - thêm thông số này
+    temperature: float = 0.0    # Nhiệt độ (°C)
     
     def to_dict(self) -> Dict[str, float]:
         """Chuyển đổi thành dictionary."""
@@ -110,16 +109,16 @@ class ModuleData:
                     has_errors = True
                     self.add_error(f"Công suất cao ({self.parameters.power:.1f}W > {max_val}W)")
 
-            # Kiểm tra điện trở
-            if not is_parameter_normal(self.name, "Điện trở", self.parameters.resistance):
-                threshold = get_threshold_for_parameter(self.name, "Điện trở")
+            # Kiểm tra nhiệt độ
+            if not is_parameter_normal(self.name, "Nhiệt độ", self.parameters.temperature):
+                threshold = get_threshold_for_parameter(self.name, "Nhiệt độ")
                 min_val, max_val = threshold['min_normal'], threshold['max_normal']
-                if self.parameters.resistance < min_val:
+                if self.parameters.temperature < min_val:
                     has_errors = True
-                    self.add_error(f"Điện trở thấp ({self.parameters.resistance:.1f}Ω < {min_val}Ω)")
-                elif self.parameters.resistance > max_val:
+                    self.add_error(f"Nhiệt độ thấp ({self.parameters.temperature:.1f}°C < {min_val}°C)")
+                elif self.parameters.temperature > max_val:
                     has_errors = True
-                    self.add_error(f"Điện trở cao ({self.parameters.resistance:.1f}Ω > {max_val}Ω)")
+                    self.add_error(f"Nhiệt độ cao ({self.parameters.temperature:.1f}°C > {max_val}°C)")
 
             # Xác định trạng thái cuối cùng - chỉ normal hoặc error
             if has_errors:
@@ -224,7 +223,6 @@ class ModuleManager:
                         voltage=default_params.get('voltage', 12.0),
                         current=default_params.get('current', 2.0),
                         power=default_params.get('power', 24.0),
-                        resistance=default_params.get('resistance', 50.0),
                         temperature=default_params.get('temperature', 35.0)
                     )
 
@@ -259,7 +257,7 @@ class ModuleManager:
 
                 module.update_parameters(
                     voltage=12.0, current=2.0, power=24.0,
-                    resistance=50.0, temperature=35.0
+                    temperature=35.0
                 )
 
                 self.modules[node_id][module_id] = module
@@ -302,20 +300,17 @@ class ModuleManager:
                 voltage_delta = random.uniform(-0.5, 0.5)
                 current_delta = random.uniform(-0.2, 0.2)
                 power_delta = random.uniform(-1, 1)
-                resistance_delta = random.uniform(-2, 2)
                 temp_delta = random.uniform(-1, 1)
-                
+
                 new_voltage = max(0, module.parameters.voltage + voltage_delta)
                 new_current = max(0, module.parameters.current + current_delta)
                 new_power = max(0, module.parameters.power + power_delta)
-                new_resistance = max(0, module.parameters.resistance + resistance_delta)
                 new_temp = max(0, module.parameters.temperature + temp_delta)
-                
+
                 module.update_parameters(
                     voltage=new_voltage,
                     current=new_current,
                     power=new_power,
-                    resistance=new_resistance,
                     temperature=new_temp
                 )
                 
@@ -396,32 +391,32 @@ module_manager = ModuleManager()
 def update_module_from_can(node_id: str, module_id: str, can_message: bytes):
     """
     Cập nhật module từ CAN message.
-    
+
     Args:
         node_id: ID của node
-        module_id: ID của module  
+        module_id: ID của module
         can_message: Raw CAN message bytes
     """
     # Parse CAN message (implement theo protocol của bạn)
-    # Ví dụ format CAN message: [voltage_bytes, current_bytes, power_bytes, resistance_bytes]
+    # Ví dụ format CAN message: [voltage_bytes, current_bytes, power_bytes, temperature_bytes]
     try:
         if len(can_message) >= 16:  # 4 parameters x 4 bytes each
             voltage = int.from_bytes(can_message[0:4], 'big') / 100.0
-            current = int.from_bytes(can_message[4:8], 'big') / 100.0  
+            current = int.from_bytes(can_message[4:8], 'big') / 100.0
             power = int.from_bytes(can_message[8:12], 'big') / 100.0
-            resistance = int.from_bytes(can_message[12:16], 'big') / 100.0
-            
+            temperature = int.from_bytes(can_message[12:16], 'big') / 100.0
+
             module_manager.update_module_parameters(
                 node_id, module_id,
                 voltage=voltage,
                 current=current,
                 power=power,
-                resistance=resistance
+                temperature=temperature
             )
             return True
     except Exception as e:
         print(f"Lỗi parse CAN message: {e}")
-    
+
     return False
 
 def update_module_from_api(node_id: str, module_id: str, api_data: Dict[str, float]):

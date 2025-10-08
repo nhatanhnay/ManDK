@@ -106,9 +106,10 @@ class InfoPanelRenderer:
         image_rect = QRect(sidebar_x, sidebar_y + 50, sidebar_width - 20, 150)
         self._draw_device_image(painter, image_rect, selected_node_data)
 
-        # Ô thông tin lỗi (dưới hình ảnh với khoảng cách nhỏ)
-        error_box_y = sidebar_y + 50 + 150 + 5   # image_y + image_height + small gap
-        error_box_rect = QRect(sidebar_x, error_box_y, sidebar_width - 20, 70)
+        # Ô thông tin lỗi (kéo dài đến cuối panel với padding phù hợp)
+        error_box_y = sidebar_y + 50 + 150 + 10   # image_y + image_height + gap
+        error_box_height = info_panel_rect.bottom() - error_box_y - 20  # Padding 20px từ đáy
+        error_box_rect = QRect(sidebar_x, error_box_y, sidebar_width - 20, error_box_height)
         self._draw_error_info_box(painter, error_box_rect, selected_node_data)
 
     def _draw_device_image(self, painter, rect, selected_node_data):
@@ -272,14 +273,26 @@ class InfoPanelRenderer:
         painter.setBrush(QBrush(Qt.NoBrush))
         painter.drawRect(module_rect)
 
-        # Vẽ tiêu đề module (không có background, đè trực tiếp lên cạnh trên)
-        painter.setPen(QPen(QColor(255, 255, 255)))
-        painter.setFont(QFont("Arial", 10, QFont.Normal))
-
+        # Vẽ tiêu đề module với background để che đường kẻ
         title_text = module_data.name
 
-        # Vẽ text tiêu đề đè lên cạnh trên
-        title_rect = QRect(rect.left() + 20, rect.top() - 6, 150, 20)
+        # Set font và tính toán kích thước text
+        painter.setFont(QFont("Arial", 10, QFont.Normal))
+        font_metrics = QFontMetrics(painter.font())
+        text_width = font_metrics.horizontalAdvance(title_text)
+        text_height = font_metrics.height()
+
+        # Tạo background rect cho text (padding 5px mỗi bên)
+        title_bg_rect = QRect(rect.left() + 18, rect.top() - 8, text_width + 10, text_height + 4)
+
+        # Vẽ background che đường kẻ (cùng màu với background panel)
+        painter.setPen(QPen(Qt.NoPen))
+        painter.setBrush(QBrush(QColor(30, 30, 30)))  # Màu nền panel
+        painter.drawRect(title_bg_rect)
+
+        # Vẽ text tiêu đề
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        title_rect = QRect(rect.left() + 23, rect.top() - 6, text_width, 20)
         painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignVCenter, title_text)
 
         # Lấy thông số thực từ module_data
@@ -287,14 +300,14 @@ class InfoPanelRenderer:
         voltage_display = f"{params.voltage:.1f}"
         current_display = f"{params.current:.1f}"
         power_display = f"{params.power:.1f}"
-        resistance_display = f"{params.resistance:.1f}"
+        temperature_display = f"{params.temperature:.1f}"
 
         # Vị trí các thông số (4 cột) - cạnh dưới module đi qua trung điểm các box này
         parameters = [
             ("Điện áp", f"{voltage_display}V"),
             ("Dòng điện", f"{current_display}A"),
             ("Công suất", f"{power_display}W"),
-            ("Điện trở", f"{resistance_display}Ω")
+            ("Nhiệt độ", f"{temperature_display}°C")
         ]
 
         for i, (label, value) in enumerate(parameters):
@@ -400,37 +413,32 @@ class InfoPanelRenderer:
         painter.setBrush(QBrush(bg_color))
         painter.drawRect(rect)
 
-        # Tiêu đề (compact)
-        painter.setFont(QFont("Arial", 8, QFont.Bold))
+        # Tiêu đề
+        painter.setFont(QFont("Arial", 11, QFont.Bold))
         painter.setPen(QPen(text_color))
-        title_rect = QRect(rect.left() + 3, rect.top() + 3, rect.width() - 6, 15)
+        title_rect = QRect(rect.left() + 10, rect.top() + 10, rect.width() - 20, 25)
 
         if selected_node_data.has_error:
             painter.drawText(title_rect, Qt.AlignCenter, "THÔNG TIN LỖI")
         else:
             painter.drawText(title_rect, Qt.AlignCenter, "TRẠNG THÁI BÌNH THƯỜNG")
 
-        # Nội dung lỗi (compact)
-        content_rect = QRect(rect.left() + 5, rect.top() + 18, rect.width() - 10, rect.height() - 21)
-        painter.setFont(QFont("Arial", 7))
+        # Nội dung lỗi
+        content_rect = QRect(rect.left() + 10, rect.top() + 40, rect.width() - 20, rect.height() - 50)
+        painter.setFont(QFont("Arial", 10))
 
         if selected_node_data.has_error:
             # Lấy danh sách lỗi từ modules
             error_messages = self._get_node_error_messages(selected_node_data)
 
             if error_messages:
-                # Hiển thị tối đa 3 lỗi để vừa với chiều cao nhỏ hơn
-                display_errors = error_messages[:3]
-                error_text = "\n".join([f"• {msg}" for msg in display_errors])
-
-                if len(error_messages) > 3:
-                    error_text += f"\n• ... +{len(error_messages) - 3} lỗi khác"
-
+                # Hiển thị tất cả lỗi
+                error_text = "\n".join([f"• {msg}" for msg in error_messages])
                 painter.drawText(content_rect, Qt.AlignTop | Qt.TextWordWrap, error_text)
             else:
                 painter.drawText(content_rect, Qt.AlignTop, "• Lỗi hệ thống chung")
         else:
-            painter.drawText(content_rect, Qt.AlignTop, "• Tất cả module hoạt động bình thường\n• Không phát hiện lỗi")
+            painter.drawText(content_rect, Qt.AlignTop | Qt.TextWordWrap, "• Tất cả module hoạt động bình thường\n• Không phát hiện lỗi")
 
     def _get_node_error_messages(self, selected_node_data):
         """Lấy danh sách thông báo lỗi từ tất cả modules của node."""
