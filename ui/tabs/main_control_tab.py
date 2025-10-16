@@ -589,7 +589,7 @@ class MainTab(GridBackgroundWidget):
         # Cập nhật trạng thái của OK Button và Cancel Button
         self._update_action_buttons_state()
         w_direction = random.randint(30,60)  # Giả lập hướng của tàu so với địa lý (độ, 0 = Bắc)
-        
+        config.DISTANCE_L = random.uniform(4000, 5000)  # Giả lập khoảng cách đến mục tiêu (m)
         # DIRECTION_L/R = hướng hiện tại, AIM_DIRECTION_L/R = hướng mục tiêu
         # Áp dụng lượng sửa vào hướng mục tiêu hiển thị
         self.compass_left.update_angle(
@@ -638,6 +638,6 @@ class MainTab(GridBackgroundWidget):
                 "Góc tầm mục tiêu (độ)": (f"{aim_angle_left_corrected:.1f}", f"{aim_angle_right_corrected:.1f}"),
                 "Pháo sẵn sàng": (str(sum(self.bullet_widget.left_launcher_status)), str(sum(self.bullet_widget.right_launcher_status))),
                 "Pháo đã chọn": (str(len(self.bullet_widget.left_selected_launchers)), str(len(self.bullet_widget.right_selected_launchers))),
-                "Khoảng cách (m)": (f"{config.DISTANCE_L:.2f}", f"{config.DISTANCE_L:.2f}")
+                "Khoảng cách (m)": (f"{config.DISTANCE_L:.2f}", f"{config.DISTANCE_R:.2f}")
             }
         )

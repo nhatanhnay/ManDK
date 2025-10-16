@@ -71,27 +71,15 @@ class AngleCompass(QWidget):
     wDirection = pyqtProperty(float, fget=getWDirection, fset=setWDirection)
 
     def update_angle(self, aim_direction: float = 0, current_direction: float = 0, w_direction: float = None) -> None:
-        """Cập nhật góc hiện tại và góc mục tiêu với animation."""
+        """Cập nhật góc hiện tại và góc mục tiêu - TẮT ANIMATION để tránh lỗi."""
+        # Update trực tiếp không qua animation
         if self._aim_direction != aim_direction:
-            self._aim_anim.stop()
-            self._aim_anim.setStartValue(self._aim_direction)
-            self._aim_anim.setEndValue(aim_direction)
-            self._aim_anim.start()
-        else:
             self.setAimDirection(aim_direction)
+        
         if self._current_direction != current_direction:
-            self._current_anim.stop()
-            self._current_anim.setStartValue(self._current_direction)
-            self._current_anim.setEndValue(current_direction)
-            self._current_anim.start()
-        else:
             self.setCurrentDirection(current_direction)
+        
         if w_direction is not None and self._w_direction != w_direction:
-            self._w_anim.stop()
-            self._w_anim.setStartValue(self._w_direction)
-            self._w_anim.setEndValue(w_direction)
-            self._w_anim.start()
-        elif w_direction is not None:
             self.setWDirection(w_direction)
         
     def _update_missile_position(self):

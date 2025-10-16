@@ -400,3 +400,127 @@ def get_firing_table_interpolator():
     if _firing_table_interpolator is None:
         _firing_table_interpolator = load_firing_table()
     return _firing_table_interpolator
+
+
+class SlopeCorrection2DTable:
+    """Bảng tra 2D cho lượng sửa chênh tà (P).
+    
+    Tra cứu dựa trên:
+    - Góc tà (góc tạ mục tiêu) - theo hàng
+    - Ly giác hiện tại (góc tầm) - theo cột
+    """
+    
+    def __init__(self, df: pd.DataFrame):
+        """
+        Khởi tạo bảng tra 2D.
+        
+        Args:
+            df: DataFrame với cột đầu tiên là góc tà, các cột còn lại là ly giác
+        """
+        self.df = df
+        
+        # Lấy tên cột đầu tiên làm index (góc tà)
+        self.slope_angle_col = df.columns[0]
+        
+        # Các cột còn lại là ly giác (góc tầm)
+        self.elevation_cols = [col for col in df.columns if col != self.slope_angle_col]
+        
+        # Chuyển các tên cột ly giác thành số
+        try:
+            self.elevation_values = np.array([float(col) for col in self.elevation_cols])
+        except ValueError:
+            raise ValueError("Tên cột phải là số (ly giác)")
+        
+        # Lấy các giá trị góc tà
+        self.slope_angles = df[self.slope_angle_col].values
+        
+        print(f"Đã load bảng tra 2D: {len(self.slope_angles)} góc tà × {len(self.elevation_values)} ly giác")
+    
+    def lookup(self, slope_angle: float, current_elevation_mils: float) -> float:
+        """
+        Tra cứu giá trị P (chênh tà) từ bảng 2D.
+        
+        Args:
+            slope_angle: Góc tà mục tiêu (độ)
+            current_elevation_mils: Ly giác hiện tại (ly giác)
+            
+        Returns:
+            Giá trị P (chênh tà) - đơn vị ly giác
+        """
+        # Tìm hàng gần nhất với góc tà
+        slope_idx = np.argmin(np.abs(self.slope_angles - slope_angle))
+        
+        # Tìm cột gần nhất với ly giác hiện tại
+        elev_idx = np.argmin(np.abs(self.elevation_values - current_elevation_mils))
+        
+        # Lấy tên cột tương ứng
+        col_name = self.elevation_cols[elev_idx]
+        
+        # Tra giá trị
+        value = self.df.iloc[slope_idx][col_name]
+        
+        return float(value)
+    
+    def interpolate(self, slope_angle: float, current_elevation_mils: float) -> float:
+        """
+        Nội suy 2D giá trị P (chênh tà) từ bảng.
+        
+        Args:
+            slope_angle: Góc tà mục tiêu (độ)
+            current_elevation_mils: Ly giác hiện tại (ly giác)
+            
+        Returns:
+            Giá trị P (chênh tà) nội suy - đơn vị ly giác
+        """
+        from scipy.interpolate import interp2d
+        
+        # Tạo lưới dữ liệu
+        data_matrix = self.df[self.elevation_cols].values
+        
+        # Tạo hàm nội suy 2D
+        f = interp2d(self.elevation_values, self.slope_angles, data_matrix, kind='linear')
+        
+        # Nội suy
+        result = f(current_elevation_mils, slope_angle)
+        
+        return float(result[0])
+
+
+def load_slope_correction_table(csv_path: str = "table2.csv"):
+    """Đọc bảng tra chênh tà từ file CSV.
+    
+    Args:
+        csv_path: Đường dẫn đến file CSV (mặc định: "table2.csv")
+        
+    Returns:
+        SlopeCorrection2DTable instance hoặc None nếu lỗi
+    """
+    try:
+        # Đọc file CSV
+        full_path = resource_path(csv_path)
+        df = pd.read_csv(full_path)
+        
+        if len(df.columns) < 2:
+            raise ValueError("File CSV phải có ít nhất 2 cột (góc tà + ly giác)")
+        
+        print(f"Đã đọc bảng tra chênh tà từ {csv_path}")
+        return SlopeCorrection2DTable(df)
+        
+    except FileNotFoundError:
+        print(f"Không tìm thấy file {csv_path}")
+        return None
+    except Exception as e:
+        print(f"Lỗi đọc file CSV: {e}")
+        return None
+
+
+# Khởi tạo bảng tra chênh tà global
+_slope_correction_table = None
+
+
+def get_slope_correction_table():
+    """Lấy hoặc tạo bảng tra chênh tà singleton."""
+    global _slope_correction_table
+    if _slope_correction_table is None:
+        _slope_correction_table = load_slope_correction_table()
+    return _slope_correction_table

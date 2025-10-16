@@ -1,3 +1,4 @@
+from random import random
 import can
 import struct
 import ui.ui_config as config
@@ -164,6 +165,8 @@ targeting_system = TargetingSystem(ship, interpolator)
 
 def run():
     distance, direction = 9000, 36
+    distance = random.uniform(4000, 5000)  # Giả lập khoảng cách đến mục tiêu (m)
+    
     bus = can.interface.Bus(channel='can0', bustype='socketcan')
     print("Listening on can0...")
     try:
