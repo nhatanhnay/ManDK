@@ -124,11 +124,11 @@ class TargetingSystem:
             
         return solutions
 
-def load_firing_table_from_csv(csv_path: str = "firing_table.csv"):
+def load_firing_table_from_csv(csv_path: str = "table1.csv"):
     """Đọc bảng bắn từ file CSV.
     
     Args:
-        csv_path: Đường dẫn đến file CSV (mặc định: "firing_table.csv")
+        csv_path: Đường dẫn đến file CSV (mặc định: "table1.csv")
         
     Returns:
         Tuple chứa hai mảng (khoảng cách, góc tầm)
@@ -137,13 +137,13 @@ def load_firing_table_from_csv(csv_path: str = "firing_table.csv"):
         # Đọc file CSV
         df = pd.read_csv(csv_path)
         
-        # Kiểm tra các cột cần thiết
-        if 'range' not in df.columns or 'angle' not in df.columns:
-            raise ValueError("File CSV phải có cột 'range' và 'angle'")
+        # Kiểm tra các cột cần thiết (X là khoảng cách, P là góc tầm)
+        if 'X' not in df.columns or 'P' not in df.columns:
+            raise ValueError("File CSV phải có cột 'X' và 'P'")
         
-        # Chuyển đổi sang numpy array
-        range_data = df['range'].values
-        angle_data = df['angle'].values
+        # Chuyển đổi sang numpy array (X là range, P là angle)
+        range_data = df['X'].values
+        angle_data = df['P'].values
         
         print(f"Đã đọc {len(range_data)} điểm dữ liệu từ {csv_path}")
         return range_data, angle_data
@@ -187,17 +187,32 @@ def run():
             # Tính toán giải pháp bắn
             solutions = targeting_system.calculate_firing_solutions(target_position)
             
-            # Cập nhật config
+            # Chỉ cập nhật khoảng cách và hướng từ CAN bus
+            # Góc tầm sẽ được tính liên tục trong UI loop
             config.DISTANCE_L = solutions["cannon_1_distance"]
             config.DIRECTION_L = solutions["cannon_1_azimuth"]
-            config.ANGLE_L = solutions["cannon_1_elevation"]
             
             config.DISTANCE_R = solutions["cannon_2_distance"]
             config.DIRECTION_R = solutions["cannon_2_azimuth"]
-            config.ANGLE_R = solutions["cannon_2_elevation"]
             
-            print(f"Updated config - L: dist={config.DISTANCE_L:.2f}, dir={config.DIRECTION_L:.2f}, angle={config.ANGLE_L:.2f}")
-            print(f"Updated config - R: dist={config.DISTANCE_R:.2f}, dir={config.DIRECTION_R:.2f}, angle={config.ANGLE_R:.2f}")
+            print(f"Updated config - L: dist={config.DISTANCE_L:.2f}, dir={config.DIRECTION_L:.2f}")
+            print(f"Updated config - R: dist={config.DISTANCE_R:.2f}, dir={config.DIRECTION_R:.2f}")
+
+            # Nhận góc hiện tại của pháo từ CAN bus (góc từ cảm biến)
+            # TODO: Thay đổi arbitration_id theo hệ thống thực tế của bạn
+            if msg.arbitration_id == 0x200:  # Góc pháo trái
+                if len(msg.data) == 8:
+                    angle, direction = struct.unpack("<ff", msg.data)
+                    config.ANGLE_L = angle  # Góc hiện tại từ cảm biến
+                    config.DIRECTION_L = direction  # Hướng hiện tại từ cảm biến
+                    print(f"Received cannon_left - angle: {angle:.2f}°, direction: {direction:.2f}°")
+            
+            if msg.arbitration_id == 0x201:  # Góc pháo phải
+                if len(msg.data) == 8:
+                    angle, direction = struct.unpack("<ff", msg.data)
+                    config.ANGLE_R = angle  # Góc hiện tại từ cảm biến
+                    config.DIRECTION_R = direction  # Hướng hiện tại từ cảm biến
+                    print(f"Received cannon_right - angle: {angle:.2f}°, direction: {direction:.2f}°")
 
             if msg.arbitration_id == 0x99:
                 #if can't run change msg['data'] to msg.data

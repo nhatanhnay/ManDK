@@ -13,8 +13,14 @@ def resource_path(relative_path):
 
 
 class HalfCircleWidget(QWidget):
+    _instance_counter = 0  # Class variable để đếm instance
+    
     def __init__(self, current_angle, aim_angle, parent=None):
         super().__init__(parent)
+        # Tạo ID duy nhất cho mỗi instance
+        HalfCircleWidget._instance_counter += 1
+        self._widget_id = f"Widget{HalfCircleWidget._instance_counter}"
+        
         self._current_angle = current_angle
         self._aim_angle = aim_angle
         # Thêm các thuộc tính cho góc hướng (360 độ)
@@ -91,6 +97,20 @@ class HalfCircleWidget(QWidget):
                      current_direction: float = 0, aim_direction: float = 0) -> None:
         """Cập nhật góc tầm và góc hướng của giàn phóng với animation"""
         
+        # Validate input values - nếu là None hoặc NaN thì dùng giá trị mặc định 0
+        if current_angle is None or (isinstance(current_angle, float) and math.isnan(current_angle)):
+            print(f"[WARNING] {self._widget_id}: current_angle is None or NaN, using 0")
+            current_angle = 0
+        if aim_angle is None or (isinstance(aim_angle, float) and math.isnan(aim_angle)):
+            print(f"[WARNING] {self._widget_id}: aim_angle is None or NaN, using 0")
+            aim_angle = 0
+        if current_direction is None or (isinstance(current_direction, float) and math.isnan(current_direction)):
+            print(f"[WARNING] {self._widget_id}: current_direction is None or NaN, using 0")
+            current_direction = 0
+        if aim_direction is None or (isinstance(aim_direction, float) and math.isnan(aim_direction)):
+            print(f"[WARNING] {self._widget_id}: aim_direction is None or NaN, using 0")
+            aim_direction = 0
+        
         if self._first_update:
             # Lần đầu tiên: cập nhật trực tiếp mà không có animation
             self.setCurrentAngle(current_angle)
@@ -101,21 +121,14 @@ class HalfCircleWidget(QWidget):
             self.update()  # Trigger repaint
             return
         
-        # Animate current_angle (for 60° wheel)
-        if self._current_angle != current_angle:
-            self._current_angle_anim.stop()
-            self._current_angle_anim.setStartValue(self._current_angle)
-            self._current_angle_anim.setEndValue(current_angle)
-            self._current_angle_anim.start()
-        else:
+        # Animate current_angle (for 60° wheel) - TẮT ANIMATION TẠM THỜI
+        # Update trực tiếp để tránh lỗi animation
+        if abs(self._current_angle - current_angle) > 0:
             self.setCurrentAngle(current_angle)
-        # Animate aim_angle (for 60° wheel)
-        if self._aim_angle != aim_angle:
-            self._aim_angle_anim.stop()
-            self._aim_angle_anim.setStartValue(self._aim_angle)
-            self._aim_angle_anim.setEndValue(aim_angle)
-            self._aim_angle_anim.start()
-        else:
+        
+        # Animate aim_angle (for 60° wheel) - TẮT ANIMATION TẠM THỜI
+        # Update trực tiếp để tránh lỗi animation
+        if abs(self._aim_angle - aim_angle) > 0:
             self.setAimAngle(aim_angle)
         
         # Update direction values (for 360° wheel) - no animation for now, just direct update

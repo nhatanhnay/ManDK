@@ -7,13 +7,14 @@ from ..widgets.half_compass_widget import HalfCircleWidget
 from ..widgets.numeric_display_widget import NumericDataWidget
 from ..widgets.ammunition_widget import BulletWidget
 from ..widgets.custom_message_box_widget import CustomMessageBox
+from ..widgets.ballistic_calculator_dialog import BallisticCalculatorWidget
 from ..components.ui_utilities import ColoredSVGButton
 import ui.ui_config as config
 from communication.data_sender import sender
 import yaml
 import random
 import math
-from common.utils import resource_path
+from common.utils import resource_path, get_firing_table_interpolator
 
 class GridBackgroundWidget(QtWidgets.QWidget):
     """Widget với grid background cho toàn bộ app với hiệu ứng dot nhấp nháy."""
@@ -130,6 +131,13 @@ class MainTab(GridBackgroundWidget):
         self._data_timer = None  # Thêm biến timer
         self._buttons_active_state = False  # Theo dõi trạng thái hiện tại của OK/Cancel button
         self._launch_all_active_state = False  # Theo dõi trạng thái hiện tại của Launch All button
+        
+        # Lưu lượng sửa từ ballistic calculator
+        self.elevation_correction_left = 0
+        self.elevation_correction_right = 0
+        self.direction_correction_left = 0
+        self.direction_correction_right = 0
+        
         self.setupUi()
 
     def setupUi(self):
@@ -392,10 +400,44 @@ class MainTab(GridBackgroundWidget):
 
     def on_calculator_button_clicked(self):
         """Xử lý sự kiện khi nhấn nút Calculator."""
-        CustomMessageBox.information(
-            "Tính toán",
-            "Chức năng tính toán đang được phát triển!"
-        )
+        # Nếu widget chưa được tạo, tạo mới
+        if not hasattr(self, 'calculator_widget'):
+            self.calculator_widget = BallisticCalculatorWidget(self)
+            # Đặt widget chiếm toàn bộ diện tích của tab (không bị che bởi tab bar)
+            self.calculator_widget.setGeometry(0, 34, self.width(), self.height() - 34)
+            self.calculator_widget.raise_()  # Đưa lên trên cùng
+            
+            # Gán callback để cập nhật half-compass widgets khi áp dụng lượng sửa
+            self.calculator_widget.on_angles_updated = self.update_half_compass_angles
+
+        # Toggle hiển thị widget
+        if self.calculator_widget.isVisible():
+            self.calculator_widget.hide()
+        else:
+            # Cập nhật lại size khi hiển thị (trong trường hợp window bị resize)
+            self.calculator_widget.setGeometry(0, 34, self.width(), self.height() - 34)
+
+            # Cập nhật lại góc hiện tại trước khi hiển thị
+            self.calculator_widget.current_elevation_left = config.ANGLE_L
+            self.calculator_widget.current_direction_left = config.DIRECTION_L
+            self.calculator_widget.current_elevation_right = config.ANGLE_R
+            self.calculator_widget.current_direction_right = config.DIRECTION_R
+            self.calculator_widget.update_angle_display()
+            self.calculator_widget.show()
+
+    def update_half_compass_angles(self, corrections):
+        """Lưu lượng sửa từ ballistic calculator - sẽ được áp dụng trong update_data()."""
+        print(f"[DEBUG] Lưu lượng sửa:")
+        print(f"  Elevation correction L: {corrections['elevation_correction_left']:.1f}° | R: {corrections['elevation_correction_right']:.1f}°")
+        print(f"  Direction correction L: {corrections['direction_correction_left']:.1f}° | R: {corrections['direction_correction_right']:.1f}°")
+        
+        # Chỉ lưu lượng sửa, không thay đổi config
+        self.elevation_correction_left = corrections['elevation_correction_left']
+        self.elevation_correction_right = corrections['elevation_correction_right']
+        self.direction_correction_left = corrections['direction_correction_left']
+        self.direction_correction_right = corrections['direction_correction_right']
+        
+        # Lượng sửa sẽ được áp dụng tự động trong update_data()
 
     def _update_action_buttons_state(self):
         """Cập nhật trạng thái và giao diện của OK Button và Cancel Button dựa trên việc có nút nào được chọn."""
@@ -529,31 +571,71 @@ class MainTab(GridBackgroundWidget):
         """Cập nhật các thông số, trang thái của các ống phóng và góc hướng hiện tại
         và góc tính toán từ hệ thống điều khiển bắn.
         """
+        # Tính toán góc tầm MỤC TIÊU liên tục từ khoảng cách hiện tại
+        interpolator = get_firing_table_interpolator()
+        if interpolator:
+            # AIM_ANGLE = góc mục tiêu (từ nội suy bảng bắn)
+            config.AIM_ANGLE_L = interpolator.interpolate_angle(config.DISTANCE_L)
+            config.AIM_ANGLE_R = interpolator.interpolate_angle(config.DISTANCE_R)
+            # AIM_DIRECTION = hướng mục tiêu (từ tính toán targeting)
+            config.AIM_DIRECTION_L = config.DIRECTION_L
+            config.AIM_DIRECTION_R = config.DIRECTION_R
+            # ANGLE_L/R và DIRECTION_L/R = góc/hướng HIỆN TẠI từ cảm biến (CAN bus)
+            # Sẽ được cập nhật từ data_receiver khi nhận CAN bus 0x200, 0x201
+        
         self.bullet_widget._update_launcher_status("Giàn trái", config.AMMO_L)
         self.bullet_widget._update_launcher_status("Giàn phải", config.AMMO_R)
         
         # Cập nhật trạng thái của OK Button và Cancel Button
         self._update_action_buttons_state()
         w_direction = random.randint(30,60)  # Giả lập hướng của tàu so với địa lý (độ, 0 = Bắc)
-        self.compass_left.update_angle(aim_direction=config.DIRECTION_L,current_direction=config.AIM_DIRECTION_L,  w_direction=config.W_DIRECTION)
-        self.compass_right.update_angle(aim_direction=config.DIRECTION_R,current_direction=config.AIM_DIRECTION_R,  w_direction=config.W_DIRECTION)
+        
+        # DIRECTION_L/R = hướng hiện tại, AIM_DIRECTION_L/R = hướng mục tiêu
+        # Áp dụng lượng sửa vào hướng mục tiêu hiển thị
+        self.compass_left.update_angle(
+            aim_direction=config.AIM_DIRECTION_L + self.direction_correction_left, 
+            current_direction=config.DIRECTION_L, 
+            w_direction=config.W_DIRECTION
+        )
+        self.compass_right.update_angle(
+            aim_direction=config.AIM_DIRECTION_R + self.direction_correction_right, 
+            current_direction=config.DIRECTION_R, 
+            w_direction=config.W_DIRECTION
+        )
         # self.compass_left.update_angle(aim_direction=-70, current_direction=-100, w_direction=config.W_DIRECTION)
         # self.compass_right.update_angle(aim_direction=90, current_direction=90, w_direction=w_direction)
-        # self.half_compass_left.update_angle(current_angle=config.AIM_ANGLE_L, aim_angle=config.ANGLE_L, 
-        #                                    current_direction=config.AIM_DIRECTION_L, aim_direction=config.DIRECTION_L)
-        # self.half_compass_right.update_angle(current_angle=config.AIM_ANGLE_R, aim_angle=config.ANGLE_R, 
-        #                                     current_direction=config.AIM_DIRECTION_R, aim_direction=config.DIRECTION_R)
-        self.half_compass_left.update_angle(current_angle=15, aim_angle=15,
-                                            current_direction=45, aim_direction=16)
-        self.half_compass_right.update_angle(current_angle=45, aim_angle=45,
-                                             current_direction=45, aim_direction=45)
+        
+        # ANGLE_L/R = góc hiện tại từ cảm biến, AIM_ANGLE_L/R = góc mục tiêu từ nội suy
+        # Áp dụng lượng sửa (nếu có) vào góc mục tiêu hiển thị
+        self.half_compass_left.update_angle(
+            current_angle=config.ANGLE_L, 
+            aim_angle=config.AIM_ANGLE_L + self.elevation_correction_left, 
+            current_direction=config.DIRECTION_L, 
+            aim_direction=config.AIM_DIRECTION_L + self.direction_correction_left
+        )
+        self.half_compass_right.update_angle(
+            current_angle=config.ANGLE_R, 
+            aim_angle=config.AIM_ANGLE_R + self.elevation_correction_right, 
+            current_direction=config.DIRECTION_R, 
+            aim_direction=config.AIM_DIRECTION_R + self.direction_correction_right
+        )
+        # self.half_compass_left.update_angle(current_angle=15, aim_angle=15,
+        #                                     current_direction=45, aim_direction=16)
+        # self.half_compass_right.update_angle(current_angle=45, aim_angle=45,
+        #                                      current_direction=45, aim_direction=45)
+        
+        # Tính góc mục tiêu sau khi áp dụng lượng sửa (để hiển thị trong numeric display)
+        aim_angle_left_corrected = config.AIM_ANGLE_L + self.elevation_correction_left
+        aim_angle_right_corrected = config.AIM_ANGLE_R + self.elevation_correction_right
+        aim_direction_left_corrected = config.AIM_DIRECTION_L + self.direction_correction_left
+        aim_direction_right_corrected = config.AIM_DIRECTION_R + self.direction_correction_right
         
         self.numeric_data_widget.update_data(
             **{
-                "Hướng ngắm hiện tại (độ)": (f"{config.AIM_DIRECTION_L:.1f}", f"{config.AIM_DIRECTION_R:.1f}"),
-                "Hướng ngắm mục tiêu (độ)": (f"{config.DIRECTION_L:.1f}", f"{config.DIRECTION_R:.1f}"),
-                "Góc tầm hiện tại (độ)": (f"{config.AIM_ANGLE_L:.1f}", f"{config.AIM_ANGLE_R:.1f}"),
-                "Góc tầm mục tiêu (độ)": (f"{config.ANGLE_L:.1f}", f"{config.ANGLE_R:.1f}"),
+                "Hướng ngắm hiện tại (độ)": (f"{config.DIRECTION_L:.1f}", f"{config.DIRECTION_R:.1f}"),
+                "Hướng ngắm mục tiêu (độ)": (f"{aim_direction_left_corrected:.1f}", f"{aim_direction_right_corrected:.1f}"),
+                "Góc tầm hiện tại (độ)": (f"{config.ANGLE_L:.1f}", f"{config.ANGLE_R:.1f}"),
+                "Góc tầm mục tiêu (độ)": (f"{aim_angle_left_corrected:.1f}", f"{aim_angle_right_corrected:.1f}"),
                 "Pháo sẵn sàng": (str(sum(self.bullet_widget.left_launcher_status)), str(sum(self.bullet_widget.right_launcher_status))),
                 "Pháo đã chọn": (str(len(self.bullet_widget.left_selected_launchers)), str(len(self.bullet_widget.right_selected_launchers))),
                 "Khoảng cách (m)": (f"{config.DISTANCE_L:.2f}", f"{config.DISTANCE_L:.2f}")
