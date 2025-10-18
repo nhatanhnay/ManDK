@@ -127,8 +127,57 @@ class CapsuleInput(QWidget):
         self.input_field.setText(text)
 
     def setEnabled(self, enabled):
-        """Enable/disable input field."""
+        """Enable/disable input field và đổi màu toàn bộ capsule."""
         self.input_field.setEnabled(enabled)
+        
+        # Đổi màu label bên trái
+        if enabled:
+            self.label.setStyleSheet("""
+                QLabel {
+                    background-color: #525252;
+                    color: #F1F5F9;
+                    font-size: 14px;
+                    font-family: 'Tahoma', Arial, sans-serif;
+                    padding-left: 20px;
+                    border-top-left-radius: 25px;
+                    border-bottom-left-radius: 25px;
+                }
+            """)
+            self.unit_label.setStyleSheet("""
+                QLabel {
+                    background-color: #525252;
+                    color: #F1F5F9;
+                    font-size: 14px;
+                    font-family: 'Tahoma', Arial, sans-serif;
+                    padding-right: 15px;
+                    border-top-right-radius: 25px;
+                    border-bottom-right-radius: 25px;
+                }
+            """)
+        else:
+            self.label.setStyleSheet("""
+                QLabel {
+                    background-color: #3a3a3a;
+                    color: #808080;
+                    font-size: 14px;
+                    font-family: 'Tahoma', Arial, sans-serif;
+                    padding-left: 20px;
+                    border-top-left-radius: 25px;
+                    border-bottom-left-radius: 25px;
+                }
+            """)
+            self.unit_label.setStyleSheet("""
+                QLabel {
+                    background-color: #3a3a3a;
+                    color: #808080;
+                    font-size: 14px;
+                    font-family: 'Tahoma', Arial, sans-serif;
+                    padding-right: 15px;
+                    border-top-right-radius: 25px;
+                    border-bottom-right-radius: 25px;
+                }
+            """)
+        
         super().setEnabled(enabled)
 
     @property
@@ -295,13 +344,13 @@ class BallisticCalculatorWidget(QWidget):
 
         # Gió ngang đạn đạo
         label_text = "Gió ngang đạn đạo thấp"
-        capsule = self.create_input_row(label_text, "0", "m/s", note_text="Gió thổi vuông góc với hướng đạn ở độ cao thấp (dương: phải, âm: trái)")
+        capsule = self.create_input_row(label_text, "0", "m/s", note_text="Gió thổi vuông góc với hướng đạn ở độ cao thấp (dương: phải sang trái, âm: trái sang phải)")
         layout.addWidget(capsule)
         self.wind_dir_inputs.append(capsule)
 
         # Gió ngang đạn đạo cao
         label_text = "Gió ngang đạn đạo cao"
-        capsule = self.create_input_row(label_text, "0", "m/s", note_text="Gió thổi vuông góc với hướng đạn ở độ cao lớn (dương: phải, âm: trái)")
+        capsule = self.create_input_row(label_text, "0", "m/s", note_text="Gió thổi vuông góc với hướng đạn ở độ cao lớn (dương: phải sang trái, âm: trái sang phải)")
         layout.addWidget(capsule)
         self.wind_dir_inputs.append(capsule)
 
@@ -317,7 +366,7 @@ class BallisticCalculatorWidget(QWidget):
 
         # Nhiệt độ liều phóng
         self.charge_temp_input = self.create_input_row("Nhiệt độ liều phóng", str(self.standard_charge_temp), "°C",
-                                                        note_text="Nhiệt độ của thuốc phóng trong đạn (tiêu chuẩn: 15°C)")
+                                                        note_text="Nhiệt độ của thuốc phóng trong đạn")
         layout.addWidget(self.charge_temp_input)
 
         # Thuốc phóng kacn-14 (chỉ nhận 0 hoặc 1)
@@ -326,7 +375,7 @@ class BallisticCalculatorWidget(QWidget):
         layout.addWidget(self.kacn_input)
 
         # Góc tạ mục tiêu
-        self.target_angle_input = self.create_input_row("Góc tà mục tiêu", "0", "",
+        self.target_angle_input = self.create_input_row("Góc tà mục tiêu", "0", "ly giác",
                                                          note_text="Góc chênh của mục tiêu (dương: mục tiêu cao hơn, âm: mục tiêu thấp hơn)")
         layout.addWidget(self.target_angle_input)
 
@@ -376,9 +425,16 @@ class BallisticCalculatorWidget(QWidget):
 
         layout.addWidget(self.manual_panel)
 
+        # Đường phân cách
+        separator1 = QFrame()
+        separator1.setFrameShape(QFrame.HLine)
+        separator1.setFrameShadow(QFrame.Sunken)
+        separator1.setStyleSheet("background-color: #475569;")
+        layout.addWidget(separator1)
+
         # Bảng hiển thị góc tầm và góc hướng
         table_title = QLabel("Góc trước và sau khi áp dụng")
-        table_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #F1F5F9; margin-top: 10px;")
+        table_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #F1F5F9; margin-top: 5px;")
         layout.addWidget(table_title)
 
         table = self.create_angle_table()
@@ -433,14 +489,14 @@ class BallisticCalculatorWidget(QWidget):
         # Label ghi chú cố định ở dưới (nếu có note_text)
         if note_text:
             note_label = QLabel(note_text)
-            note_label.setFixedHeight(24)
-            note_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            note_label.setFixedHeight(30)
+            note_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             note_label.setWordWrap(True)
             note_label.setStyleSheet("""
                 QLabel {
                     background-color: transparent;
                     color: #94A3B8;
-                    font-size: 13px;
+                    font-size: 12px;
                     font-style: italic;
                     padding-left: 5px;
                     padding-right: 5px;

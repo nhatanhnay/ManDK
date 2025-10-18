@@ -345,15 +345,35 @@ class MainTab(GridBackgroundWidget):
             self.bullet_widget._update_launcher_status("Giàn phải", new_right_status)
             config.AMMO_L = new_left_status
             config.AMMO_R = new_right_status
+            
+            # Gửi lệnh qua CAN bus và kiểm tra kết quả
+            can_success = True
             if len(left_selected) > 0:
-                sender(0x31, left_selected)
+                if not sender(0x31, left_selected):
+                    can_success = False
             if len(right_selected) > 0:
-                sender(0x32, right_selected)
-            # Thông báo thành công
-            CustomMessageBox.information(
-                "Thông báo",
-                f"Đã phóng thành công {selected_count} ống!"
-            )
+                if not sender(0x32, right_selected):
+                    can_success = False
+            
+            # Ghi log và thông báo kết quả
+            from ui.tabs.event_log_tab import LogTab
+            
+            if can_success:
+                success_msg = f"Đã phóng thành công {selected_count} ống (Trái: {len(left_selected)}, Phải: {len(right_selected)})"
+                LogTab.log(success_msg, "SUCCESS")
+                CustomMessageBox.information(
+                    "Thông báo",
+                    f"Đã phóng thành công {selected_count} ống!"
+                )
+            else:
+                warning_msg = f"Đã cập nhật trạng thái {selected_count} ống nhưng không thể gửi lệnh qua CAN bus"
+                LogTab.log(warning_msg, "WARNING")
+                CustomMessageBox.warning(
+                    "Cảnh báo",
+                    f"Đã cập nhật trạng thái {selected_count} ống!\n"
+                    f"Tuy nhiên không thể gửi lệnh qua CAN bus.\n"
+                    f"Vui lòng kiểm tra kết nối thiết bị CAN."
+                )
             
             # Cập nhật trạng thái nút sau khi phóng
             self._update_action_buttons_state()

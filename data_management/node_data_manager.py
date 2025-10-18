@@ -11,9 +11,10 @@ from datetime import datetime
 class NodeData:
     """Class lưu trữ dữ liệu của một node."""
     
-    def __init__(self, node_id: str, name: str):
+    def __init__(self, node_id: str, name: str, config_id: str = ""):
         self.node_id = node_id
         self.name = name
+        self.config_id = config_id  # ID chuẩn của node (ví dụ: NODE-001)
         self.voltage_history: List[Dict[str, Any]] = []
         self.error_messages: List[str] = []
         self.error_codes: List[str] = []
@@ -101,53 +102,53 @@ class SystemDataManager:
         """Khởi tạo tất cả các node trong hệ thống."""
         # Khoang điều khiển tại chỗ 1
         compartment1_nodes = [
-            ('ac_quy_1', 'Tủ ác quy'),
-            ('phan_phoi_1', 'Tủ phân phối\nbiến đổi'),
-            ('bien_ap_1', 'Tủ biến áp'),
-            ('dan_dong_huong_1', 'Hộp dẫn động\nkềnh hướng'),
-            ('dan_dong_tam_1', 'Hộp dẫn động\nkềnh tâm'),
-            ('dieu_khien_1', 'Tủ điều khiển\ntại chỗ 1'),
-            ('ban_dieu_khien_1', 'Bàn điều\nkhiển tại chỗ'),
-            ('hn11', 'HN11'),
-            ('hn12', 'HN12')
+            ('ac_quy_1', 'Tủ ác quy', 'NODE-001'),
+            ('phan_phoi_1', 'Tủ phân phối\nbiến đổi', 'NODE-002'),
+            ('bien_ap_1', 'Tủ biến áp', 'NODE-003'),
+            ('dan_dong_huong_1', 'Hộp dẫn động\nkênh hướng', 'NODE-004'),
+            ('dan_dong_tam_1', 'Hộp dẫn động\nkênh tầm', 'NODE-005'),
+            ('dieu_khien_1', 'Tủ điều khiển\ntại chỗ 1', 'NODE-006'),
+            ('ban_dieu_khien_1', 'Bàn điều\nkhiển tại chỗ', 'NODE-007'),
+            ('hn11', 'HN11', 'NODE-008'),
+            ('hn12', 'HN12', 'NODE-009')
         ]
 
         # Tủ động cơ riêng biệt (ngoài khoang)
         motor_cabinets = [
-            ('dong_co_huong', 'Động cơ\nhướng'),
-            ('dong_co_tam', 'Động cơ\ntầm')
+            ('dong_co_huong', 'Động cơ\nhướng', 'NODE-010'),
+            ('dong_co_tam', 'Động cơ\ntầm', 'NODE-011')
         ]
         
         # Khoang điều khiển giữa
         compartment2_nodes = [
-            ('giao_tiep_hang_hai', 'Khối giao tiếp\nhàng hải'),
-            ('ban_dieu_khien_chinh', 'Bàn điều\nkhiển chính từ\nxa'),
-            ('bang_dien_chinh', 'Bảng điện\nchính')
+            ('giao_tiep_hang_hai', 'Khối giao tiếp\nhàng hải', 'NODE-012'),
+            ('ban_dieu_khien_chinh', 'Bàn điều\nkhiển chính từ\nxa', 'NODE-013'),
+            ('bang_dien_chinh', 'Bảng điện\nchính', 'NODE-014')
         ]
         
         # Khoang điều khiển tại chỗ 2
         compartment3_nodes = [
-            ('ac_quy_2', 'Tủ ác quy'),
-            ('phan_phoi_2', 'Tủ phân phối\nbiến đổi'),
-            ('bien_ap_2', 'Tủ biến áp'),
-            ('dan_dong_huong_2', 'Hộp dẫn động\nkềnh hướng'),
-            ('dan_dong_tam_2', 'Hộp dẫn động\nkềnh tâm'),
-            ('dieu_khien_2', 'Tủ điều khiển\ntại chỗ 2'),
-            ('ban_dieu_khien_2', 'Bàn điều\nkhiển tại chỗ'),
-            ('hn22', 'HN22'),
-            ('hn21', 'HN21')
+            ('ac_quy_2', 'Tủ ác quy', 'NODE-015'),
+            ('phan_phoi_2', 'Tủ phân phối\nbiến đổi', 'NODE-016'),
+            ('bien_ap_2', 'Tủ biến áp', 'NODE-017'),
+            ('dan_dong_huong_2', 'Hộp dẫn động\nkênh hướng', 'NODE-018'),
+            ('dan_dong_tam_2', 'Hộp dẫn động\nkênh tầm', 'NODE-019'),
+            ('dieu_khien_2', 'Tủ điều khiển\ntại chỗ 2', 'NODE-020'),
+            ('ban_dieu_khien_2', 'Bàn điều\nkhiển tại chỗ', 'NODE-021'),
+            ('hn22', 'HN22', 'NODE-022'),
+            ('hn21', 'HN21', 'NODE-023')
         ]
         
         # Cột ngắm
         sight_column_nodes = [
-            ('hop_dien', 'Hộp điện'),
-            ('hop_quang_dien_tu', 'Hộp quang\nđiện tử')
+            ('hop_dien', 'Hộp điện', 'NODE-024'),
+            ('hop_quang_dien_tu', 'Hộp quang\nđiện tử', 'NODE-025')
         ]
         
         # Tạo tất cả nodes
         all_nodes = compartment1_nodes + compartment2_nodes + compartment3_nodes + sight_column_nodes + motor_cabinets
-        for node_id, name in all_nodes:
-            self.nodes[node_id] = NodeData(node_id, name)
+        for node_id, name, config_id in all_nodes:
+            self.nodes[node_id] = NodeData(node_id, name, config_id)
             
     def get_node(self, node_id: str) -> NodeData:
         """Lấy node theo ID."""

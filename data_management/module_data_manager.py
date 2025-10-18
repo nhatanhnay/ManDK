@@ -30,10 +30,11 @@ class ModuleParameters:
 class ModuleData:
     """Class lưu trữ dữ liệu của một module."""
     
-    def __init__(self, module_id: str, name: str, node_id: str):
+    def __init__(self, module_id: str, name: str, node_id: str, config_id: str = ""):
         self.module_id = module_id
         self.name = name
         self.node_id = node_id
+        self.config_id = config_id  # ID từ config file (ví dụ: MOD-001)
         self.parameters = ModuleParameters()
         self.parameter_history: List[Dict[str, Any]] = []
         self.status = "normal"  # normal, error
@@ -189,6 +190,7 @@ class ModuleData:
             'module_id': self.module_id,
             'name': self.name,
             'node_id': self.node_id,
+            'config_id': self.config_id,
             'parameters': self.parameters.to_dict(),
             'status': self.status,
             'error_messages': self.error_messages,
@@ -213,7 +215,12 @@ class ModuleManager:
 
                 for i, module_name in enumerate(module_names, 1):
                     module_id = f"{node_id}_module_{i:02d}"
-                    module = ModuleData(module_id, module_name, node_id)
+                    
+                    # Get config ID from module configuration
+                    module_config = unified_threshold_manager.config_data.get('module_configurations', {}).get(module_name, {})
+                    config_id = module_config.get('id', '')
+                    
+                    module = ModuleData(module_id, module_name, node_id, config_id)
 
                     # Get default parameters from unified config
                     default_params = unified_threshold_manager.get_module_default_parameters(module_name)
@@ -253,7 +260,7 @@ class ModuleManager:
             self.modules[node_id] = {}
             for i in range(1, 5):  # Create 4 basic modules per node
                 module_id = f"{node_id}_module_{i:02d}"
-                module = ModuleData(module_id, f"module_{i}", node_id)
+                module = ModuleData(module_id, f"module_{i}", node_id, f"MOD-{i:03d}")
 
                 module.update_parameters(
                     voltage=12.0, current=2.0, power=24.0,
@@ -354,7 +361,8 @@ class ModuleManager:
                         module = ModuleData(
                             module_data['module_id'],
                             module_data['name'],
-                            module_data['node_id']
+                            module_data['node_id'],
+                            module_data.get('config_id', '')  # Load config_id if exists
                         )
                         module.parameters = ModuleParameters.from_dict(module_data['parameters'])
                         module.status = module_data['status']

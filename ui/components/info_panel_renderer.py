@@ -275,25 +275,44 @@ class InfoPanelRenderer:
 
         # Vẽ tiêu đề module với background để che đường kẻ
         title_text = module_data.name
+        id_text = module_data.config_id if hasattr(module_data, 'config_id') and module_data.config_id else ""
 
-        # Set font và tính toán kích thước text
+        # Set font và tính toán kích thước text cho tên module (bên trái)
         painter.setFont(QFont("Arial", 10, QFont.Normal))
         font_metrics = QFontMetrics(painter.font())
         text_width = font_metrics.horizontalAdvance(title_text)
         text_height = font_metrics.height()
 
-        # Tạo background rect cho text (padding 5px mỗi bên)
-        title_bg_rect = QRect(rect.left() + 18, rect.top() - 8, text_width + 10, text_height + 4)
+        # Tạo background rect cho text tên module (padding đủ lớn để không che dấu)
+        title_bg_rect = QRect(rect.left() + 8, rect.top() - 10, text_width + 14, text_height + 8)
 
         # Vẽ background che đường kẻ (cùng màu với background panel)
         painter.setPen(QPen(Qt.NoPen))
         painter.setBrush(QBrush(QColor(30, 30, 30)))  # Màu nền panel
         painter.drawRect(title_bg_rect)
 
-        # Vẽ text tiêu đề
+        # Vẽ text tiêu đề (bên trái) - đủ khoảng trống phía trên cho dấu
         painter.setPen(QPen(QColor(255, 255, 255)))
-        title_rect = QRect(rect.left() + 23, rect.top() - 6, text_width, 20)
-        painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignVCenter, title_text)
+        title_rect = QRect(rect.left() + 12, rect.top() - 8, text_width, text_height + 4)
+        painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignTop, title_text)
+
+        # Vẽ ID bên phải (nếu có)
+        if id_text:
+            id_width = font_metrics.horizontalAdvance(id_text)
+            
+            # Tạo background rect cho ID
+            id_bg_rect = QRect(rect.right() - id_width - 28, rect.top() - 8, id_width + 10, text_height + 4)
+            
+            # Vẽ background cho ID
+            painter.setPen(QPen(Qt.NoPen))
+            painter.setBrush(QBrush(QColor(30, 30, 30)))
+            painter.drawRect(id_bg_rect)
+            
+            # Vẽ text ID (màu xanh nhạt để phân biệt)
+            painter.setPen(QPen(QColor(100, 200, 255)))
+            painter.setFont(QFont("Arial", 9, QFont.Normal))
+            id_rect = QRect(rect.right() - id_width - 23, rect.top() - 6, id_width, 20)
+            painter.drawText(id_rect, Qt.AlignRight | Qt.AlignVCenter, id_text)
 
         # Lấy thông số thực từ module_data
         params = module_data.parameters

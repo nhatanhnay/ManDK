@@ -1,6 +1,7 @@
 {
   "module_configurations": {
     "Module phân phối điện chính": {
+      "id": "MOD-001",
       "default_parameters": {
         "voltage": 440.0,
         "current": 200.0,
@@ -34,6 +35,7 @@
       "description": "Module phân phối điện năng chính"
     },
     "Module UPS": {
+      "id": "MOD-002",
       "default_parameters": {
         "voltage": 220.0,
         "current": 50.0,
@@ -67,6 +69,7 @@
       "description": "Module nguồn lưu điện UPS"
     },
     "Module đo lường điện": {
+      "id": "MOD-003",
       "default_parameters": {
         "voltage": 12.0,
         "current": 1.0,
@@ -100,6 +103,7 @@
       "description": "Module đo các thông số điện"
     },
     "Module bảo vệ chính": {
+      "id": "MOD-004",
       "default_parameters": {
         "voltage": 12.0,
         "current": 0.5,
@@ -133,6 +137,7 @@
       "description": "Module bảo vệ hệ thống điện chính"
     },
     "Module nguồn": {
+      "id": "MOD-005",
       "default_parameters": {
         "voltage": 12.0,
         "current": 2.0,
@@ -172,6 +177,7 @@
       "description": "Module cấp nguồn điện"
     },
     "Module quạt làm mát": {
+      "id": "MOD-006",
       "default_parameters": {
         "voltage": 12.0,
         "current": 1.5,
@@ -216,6 +222,7 @@
       "description": "Module quạt làm mát hệ thống"
     },
     "Module cảm biến": {
+      "id": "MOD-007",
       "default_parameters": {
         "voltage": 12.0,
         "current": 1.0,
@@ -249,6 +256,7 @@
       "description": "Module cảm biến và giám sát"
     },
     "Module truyền thông": {
+      "id": "MOD-008",
       "default_parameters": {
         "voltage": 12.0,
         "current": 0.8,
@@ -282,6 +290,7 @@
       "description": "Module truyền thông và giao tiếp"
     },
     "Module hiển thị": {
+      "id": "MOD-009",
       "default_parameters": {
         "voltage": 12.0,
         "current": 0.5,

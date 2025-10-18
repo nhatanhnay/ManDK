@@ -1,4 +1,4 @@
-from random import random
+import random
 import can
 import struct
 import ui.ui_config as config
@@ -167,8 +167,44 @@ def run():
     distance, direction = 9000, 36
     distance = random.uniform(4000, 5000)  # Giả lập khoảng cách đến mục tiêu (m)
     
-    bus = can.interface.Bus(channel='can0', bustype='socketcan')
-    print("Listening on can0...")
+    try:
+        bus = can.interface.Bus(channel='can0', bustype='socketcan')
+        print("Listening on can0...")
+        # Ghi log thành công
+        try:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log("CAN receiver đã khởi động thành công trên can0", "SUCCESS")
+        except:
+            pass
+    except OSError as e:
+        if e.errno == 19:  # No such device
+            error_msg = "Lỗi CAN: Không tìm thấy thiết bị 'can0'. CAN receiver sẽ không hoạt động."
+            print(error_msg)
+            # Ghi log vào event log
+            try:
+                from ui.tabs.event_log_tab import LogTab
+                LogTab.log(error_msg, "ERROR")
+            except:
+                pass
+        else:
+            error_msg = f"Lỗi CAN OSError: {e}"
+            print(error_msg)
+            try:
+                from ui.tabs.event_log_tab import LogTab
+                LogTab.log(error_msg, "ERROR")
+            except:
+                pass
+        return  # Thoát hàm nếu không thể khởi tạo CAN bus
+    except Exception as e:
+        error_msg = f"Lỗi không xác định khi khởi tạo CAN bus: {e}"
+        print(error_msg)
+        try:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(error_msg, "ERROR")
+        except:
+            pass
+        return
+    
     try:
         for msg in bus:
             print(msg)
@@ -237,3 +273,9 @@ def run():
                         
     except KeyboardInterrupt:
         print("Stopped receiving")
+    except Exception as e:
+        print(f"Lỗi khi nhận dữ liệu CAN: {e}")
+    finally:
+        if 'bus' in locals():
+            bus.shutdown()
+            print("CAN bus đã được đóng")
