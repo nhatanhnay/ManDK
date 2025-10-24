@@ -318,13 +318,13 @@ class SystemDiagramRenderer:
         except:
             pass  # Fallback to normal status
 
-        # Màu sắc dựa trên trạng thái
+        # Màu sắc dựa trên trạng thái - khớp với logic của các node khác
         if has_error:
-            cabinet_color = QColor(200, 80, 80)     # Đỏ cho lỗi
-            cabinet_border = QColor(255, 100, 100)
+            cabinet_color = QColor(255, 0, 0)       # Đỏ cho lỗi (giống các node khác)
+            cabinet_text_color = QColor(255, 255, 255)  # Chữ trắng khi có lỗi
         else:
-            cabinet_color = QColor(80, 180, 80)     # Xanh cho bình thường
-            cabinet_border = QColor(100, 220, 100)
+            cabinet_color = box_color               # Nền trắng (box_color)
+            cabinet_text_color = QColor(0, 0, 0)    # Chữ đen (giống các node khác)
 
         # Lưu vùng clickable với proper node_id mapping
         node_rect = QRect(x, y, box_width, box_height)
@@ -339,13 +339,13 @@ class SystemDiagramRenderer:
             'node_id': mapped_node_id
         })
 
-        # Vẽ hộp với màu trạng thái
-        painter.setPen(QPen(cabinet_border, 2))
+        # Vẽ hộp - giống hệt _draw_component_box
+        painter.setPen(QPen(QColor(100, 200, 255), 1))  # Viền xanh dương nhạt, độ dày 1
         painter.setBrush(QBrush(cabinet_color))
         painter.drawRect(x, y, box_width, box_height)
 
         # Vẽ text
-        painter.setPen(QPen(text_color))
+        painter.setPen(QPen(cabinet_text_color))
         text_rect = QRect(x + 5, y + 5, box_width - 10, box_height - 10)
         painter.drawText(text_rect, Qt.AlignCenter, text)
 
