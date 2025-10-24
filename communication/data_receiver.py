@@ -163,6 +163,110 @@ range_data, angle_data = load_firing_table_from_csv()
 interpolator = FiringTableInterpolator(range_data, angle_data)
 targeting_system = TargetingSystem(ship, interpolator)
 
+def parse_module_data_from_can(msg):
+    """
+    Parse CAN message để lấy thông số module.
+    
+    CAN Protocol:
+    - CAN ID: 0x300 + node_index (0x300-0x32F)
+    - Data format (8 bytes):
+      [0]: Module index (0-255)
+      [1-2]: Voltage (uint16, scale 0.01V → 0-655.35V)
+      [3-4]: Current (uint16, scale 0.01A → 0-655.35A)
+      [5-6]: Power (uint16, scale 0.1W → 0-6553.5W)
+      [7]: Temperature (uint8, °C → 0-255°C)
+    
+    Returns:
+        tuple: (node_id, module_index, voltage, current, power, temperature) hoặc None nếu invalid
+    """
+    try:
+        # Check if CAN ID is in module data range (0x300-0x32F)
+        if msg.arbitration_id < 0x300 or msg.arbitration_id > 0x32F:
+            return None
+        
+        # Check data length
+        if len(msg.data) != 8:
+            print(f"[CAN] Invalid module data length: {len(msg.data)} bytes (expected 8)")
+            return None
+        
+        # Extract node index from CAN ID
+        node_index = msg.arbitration_id - 0x300
+        
+        # Parse data
+        module_index = msg.data[0]
+        voltage = struct.unpack(">H", msg.data[1:3])[0] * 0.01  # Big-endian uint16, scale 0.01
+        current = struct.unpack(">H", msg.data[3:5])[0] * 0.01  # Big-endian uint16, scale 0.01
+        power = struct.unpack(">H", msg.data[5:7])[0] * 0.1     # Big-endian uint16, scale 0.1
+        temperature = msg.data[7]  # uint8
+        
+        # Get node_id from config
+        from data_management.configuration_manager import get_node_id_from_index
+        node_id = get_node_id_from_index(node_index)
+        
+        if node_id is None:
+            print(f"[CAN] Unknown node index: {node_index}")
+            return None
+        
+        return (node_id, module_index, voltage, current, power, temperature)
+        
+    except Exception as e:
+        print(f"[CAN] Error parsing module data: {e}")
+        return None
+
+
+def update_module_from_can_message(node_id, module_index, voltage, current, power, temperature):
+    """
+    Cập nhật thông số module từ CAN message vào hệ thống.
+    
+    Args:
+        node_id: ID của node (ví dụ: "bang_dien_chinh")
+        module_index: Index của module trong node (0-based)
+        voltage: Điện áp (V)
+        current: Dòng điện (A)
+        power: Công suất (W)
+        temperature: Nhiệt độ (°C)
+    """
+    try:
+        from data_management.module_data_manager import module_manager
+        
+        # Get all modules of the node
+        node_modules = module_manager.get_node_modules(node_id)
+        
+        if not node_modules:
+            print(f"[CAN] Node '{node_id}' has no modules")
+            return False
+        
+        # Convert dict to list to access by index
+        module_list = list(node_modules.values())
+        
+        if module_index >= len(module_list):
+            print(f"[CAN] Module index {module_index} out of range for node '{node_id}' (has {len(module_list)} modules)")
+            return False
+        
+        # Get the module at the specified index
+        target_module = module_list[module_index]
+        module_id = target_module.module_id
+        
+        # Update module parameters
+        success = module_manager.update_module_parameters(
+            node_id, 
+            module_id,
+            voltage=voltage,
+            current=current,
+            power=power,
+            temperature=temperature
+        )
+        
+        if success:
+            print(f"[CAN] Updated {node_id}[{module_index}] {target_module.name}: V={voltage:.2f}V, I={current:.2f}A, P={power:.1f}W, T={temperature}°C")
+        
+        return success
+        
+    except Exception as e:
+        print(f"[CAN] Error updating module: {e}")
+        return False
+
+
 def run():
     distance, direction = 9000, 36
     distance = random.uniform(4000, 5000)  # Giả lập khoảng cách đến mục tiêu (m)
@@ -208,6 +312,14 @@ def run():
     try:
         for msg in bus:
             print(msg)
+            
+            # Parse module data (CAN ID 0x300-0x32F)
+            module_data = parse_module_data_from_can(msg)
+            if module_data:
+                node_id, module_index, voltage, current, power, temperature = module_data
+                update_module_from_can_message(node_id, module_index, voltage, current, power, temperature)
+                continue  # Skip other processing for module data messages
+            
             if msg.arbitration_id == 0x100:
                 if len(msg.data) == 4:
                     (distance,) = struct.unpack("<f", msg.data)

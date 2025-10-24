@@ -215,58 +215,100 @@ class RoundedLineEdit(QLineEdit):
         self.setMinimumHeight(36)
 
 
-class ToggleSwitch(QWidget):
-    """Toggle switch tự động/thủ công."""
+class ModeSelector(QWidget):
+    """Widget chọn chế độ với radio buttons: Tự động, Bán tự động, Thủ công."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.is_auto = True  # True = Tự động, False = Thủ công
-        self.setFixedSize(110, 40)  # Tăng width từ 100 lên 110
-        self.setCursor(Qt.PointingHandCursor)
-
-    def paintEvent(self, event):
-        from PyQt5.QtGui import QPainter, QColor, QPen, QBrush
-        from PyQt5.QtCore import QRectF
-
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-
-        # Vẽ nền toggle
-        if self.is_auto:
-            bg_color = QColor(16, 185, 129)  # Xanh lá khi bật (tự động)
-        else:
-            bg_color = QColor(71, 85, 105)  # Xám khi tắt (thủ công)
-
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QBrush(bg_color))
-        painter.drawRoundedRect(0, 0, 110, 40, 20, 20)
-
-        # Vẽ nút tròn
-        circle_x = 75 if self.is_auto else 5  # 75 = 110 - 30 - 5
-        painter.setBrush(QBrush(QColor(241, 245, 249)))  # Trắng
-        painter.drawEllipse(circle_x, 5, 30, 30)
-
-        # Vẽ chữ
-        painter.setPen(QPen(QColor(241, 245, 249)))
-        font = QFont("Tahoma", 9, QFont.Bold)
-        painter.setFont(font)
-
-        from PyQt5.QtCore import QRect
-        if self.is_auto:
-            # Text bên trái khi nút ở bên phải
-            text_rect = QRect(10, 0, 60, 40)
-            painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, "Tự động")
-        else:
-            # Text bên phải khi nút ở bên trái
-            text_rect = QRect(40, 0, 65, 40)
-            painter.drawText(text_rect, Qt.AlignRight | Qt.AlignVCenter, "Thủ công")
-
-    def mousePressEvent(self, event):
-        self.is_auto = not self.is_auto
-        self.update()
+        self.current_mode = "auto"  # "auto", "semi-auto", "manual"
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Thiết lập giao diện."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+        
+        # Title
+        title = QLabel("Chế độ tính toán")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #F1F5F9;")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+        
+        # Container cho các radio buttons
+        radio_container = QWidget()
+        radio_layout = QHBoxLayout(radio_container)
+        radio_layout.setContentsMargins(0, 0, 0, 0)
+        radio_layout.setSpacing(15)
+        
+        # Tạo 3 radio buttons
+        self.auto_radio = self.create_radio_button("Tự động", True)
+        self.semi_auto_radio = self.create_radio_button("Bán tự động", False)
+        self.manual_radio = self.create_radio_button("Thủ công", False)
+        
+        radio_layout.addWidget(self.auto_radio)
+        radio_layout.addWidget(self.semi_auto_radio)
+        radio_layout.addWidget(self.manual_radio)
+        
+        layout.addWidget(radio_container)
+        
+        # Connect signals
+        self.auto_radio.clicked.connect(lambda: self.on_mode_changed("auto"))
+        self.semi_auto_radio.clicked.connect(lambda: self.on_mode_changed("semi-auto"))
+        self.manual_radio.clicked.connect(lambda: self.on_mode_changed("manual"))
+    
+    def create_radio_button(self, text, checked=False):
+        """Tạo một radio button với styling tùy chỉnh."""
+        from PyQt5.QtWidgets import QRadioButton
+        
+        radio = QRadioButton(text)
+        radio.setChecked(checked)
+        radio.setCursor(Qt.PointingHandCursor)
+        radio.setStyleSheet("""
+            QRadioButton {
+                color: #F1F5F9;
+                font-size: 13px;
+                font-family: 'Tahoma', Arial, sans-serif;
+                spacing: 8px;
+            }
+            QRadioButton::indicator {
+                width: 20px;
+                height: 20px;
+                border-radius: 10px;
+                border: 2px solid #64C8FF;
+                background-color: transparent;
+            }
+            QRadioButton::indicator:checked {
+                background-color: #64C8FF;
+                border: 2px solid #64C8FF;
+            }
+            QRadioButton:hover {
+                color: #FFFFFF;
+            }
+        """)
+        return radio
+    
+    def on_mode_changed(self, mode):
+        """Xử lý khi chế độ thay đổi."""
+        self.current_mode = mode
+        
+        # Update checked state
+        self.auto_radio.setChecked(mode == "auto")
+        self.semi_auto_radio.setChecked(mode == "semi-auto")
+        self.manual_radio.setChecked(mode == "manual")
+        
         # Gọi callback nếu có
-        if hasattr(self, 'on_toggle'):
-            self.on_toggle(self.is_auto)
+        if hasattr(self, 'on_mode_change_callback'):
+            self.on_mode_change_callback(mode)
+    
+    def get_mode(self):
+        """Lấy chế độ hiện tại."""
+        return self.current_mode
+    
+    def set_mode(self, mode):
+        """Set chế độ."""
+        if mode in ["auto", "semi-auto", "manual"]:
+            self.on_mode_changed(mode)
 
 
 class BallisticCalculatorWidget(QWidget):
@@ -384,22 +426,15 @@ class BallisticCalculatorWidget(QWidget):
         return panel
 
     def create_right_panel(self):
-        """Tạo panel bên phải với switch và bảng."""
+        """Tạo panel bên phải với mode selector và bảng."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setSpacing(20)
 
-        # Title với toggle switch
-        header = QHBoxLayout()
-        title = QLabel("Chế độ tính toán")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #F1F5F9;")
-        header.addWidget(title)
-        header.addStretch()
-
-        self.toggle_switch = ToggleSwitch()
-        self.toggle_switch.on_toggle = self.on_mode_changed
-        header.addWidget(self.toggle_switch)
-        layout.addLayout(header)
+        # Mode selector (thay thế toggle switch)
+        self.mode_selector = ModeSelector()
+        self.mode_selector.on_mode_change_callback = self.on_mode_changed
+        layout.addWidget(self.mode_selector)
 
         # Input fields cho mode thủ công
         self.manual_panel = QWidget()
@@ -798,25 +833,39 @@ class BallisticCalculatorWidget(QWidget):
         self.std_pressure_input.textChanged.connect(self.update_angle_display)
         self.std_charge_temp_input.textChanged.connect(self.update_angle_display)
 
-    def on_mode_changed(self, is_auto):
-        """Xử lý khi chuyển đổi giữa tự động và thủ công."""
+    def on_mode_changed(self, mode):
+        """Xử lý khi chuyển đổi giữa 3 chế độ: tự động, bán tự động, thủ công.
+        
+        Args:
+            mode: "auto", "semi-auto", hoặc "manual"
+        """
+        is_auto = (mode == "auto")
+        is_semi_auto = (mode == "semi-auto")
+        is_manual = (mode == "manual")
+        
         # Enable/disable các input thủ công
-        # Khi tự động: disable, khi thủ công: enable
-        self.manual_elevation_left_input.setEnabled(not is_auto)
-        self.manual_direction_left_input.setEnabled(not is_auto)
-        self.manual_elevation_right_input.setEnabled(not is_auto)
-        self.manual_direction_right_input.setEnabled(not is_auto)
+        # - Tự động: disable (tính toán tự động)
+        # - Bán tự động: enable (cho phép nhập lượng sửa)
+        # - Thủ công: enable (nhập hoàn toàn thủ công)
+        enable_manual_inputs = is_semi_auto or is_manual
+        self.manual_elevation_left_input.setEnabled(enable_manual_inputs)
+        self.manual_direction_left_input.setEnabled(enable_manual_inputs)
+        self.manual_elevation_right_input.setEnabled(enable_manual_inputs)
+        self.manual_direction_right_input.setEnabled(enable_manual_inputs)
 
-        # Enable/disable các input bên trái
-        # Khi tự động: enable, khi thủ công: disable
+        # Enable/disable các input bên trái (điều kiện môi trường)
+        # - Tự động: enable (sử dụng để tính toán)
+        # - Bán tự động: enable (tham khảo, nhưng có thể sửa thủ công)
+        # - Thủ công: disable (không dùng đến, nhập trực tiếp lượng sửa)
+        enable_env_inputs = is_auto or is_semi_auto
         for input_field in self.wind_speed_inputs + self.wind_dir_inputs:
-            input_field.setEnabled(is_auto)
+            input_field.setEnabled(enable_env_inputs)
 
-        self.air_density_input.setEnabled(is_auto)
-        self.air_temp_input.setEnabled(is_auto)
-        self.charge_temp_input.setEnabled(is_auto)
-        self.kacn_input.setEnabled(is_auto)
-        self.target_angle_input.setEnabled(is_auto)
+        self.air_density_input.setEnabled(enable_env_inputs)
+        self.air_temp_input.setEnabled(enable_env_inputs)
+        self.charge_temp_input.setEnabled(enable_env_inputs)
+        self.kacn_input.setEnabled(enable_env_inputs)
+        self.target_angle_input.setEnabled(enable_env_inputs)
 
         # Cập nhật lại góc khi chuyển mode
         self.update_angle_display()
@@ -990,7 +1039,9 @@ class BallisticCalculatorWidget(QWidget):
         aim_direction_left = config.AIM_DIRECTION_L
         aim_direction_right = config.AIM_DIRECTION_R
         
-        if self.toggle_switch.is_auto:
+        current_mode = self.mode_selector.get_mode()
+        
+        if current_mode == "auto":
             # Chế độ tự động - tính toán lượng sửa cho cả trái và phải
             elev_left_corr, elev_right_corr, dir_left_corr, dir_right_corr = self.calculate_corrections()
 
@@ -1011,7 +1062,53 @@ class BallisticCalculatorWidget(QWidget):
             self.angle_cells['corrected_direction_left'].setText(f"{corrected_direction_left:.1f}°")
             self.angle_cells['corrected_direction_right'].setText(f"{corrected_direction_right:.1f}°")
 
-        else:
+        elif current_mode == "semi-auto":
+            # Chế độ bán tự động - tính toán tự động CỘ NG THÊM lượng sửa thủ công
+            auto_elev_left, auto_elev_right, auto_dir_left, auto_dir_right = self.calculate_corrections()
+            
+            # Lấy giá trị manual để CỘNG THÊM vào auto
+            try:
+                manual_elev_left_mils = float(self.manual_elevation_left_input.text() or 0)
+                manual_elev_right_mils = float(self.manual_elevation_right_input.text() or 0)
+                manual_dir_left_mils = float(self.manual_direction_left_input.text() or 0)
+                manual_dir_right_mils = float(self.manual_direction_right_input.text() or 0)
+                
+                # Chuyển đổi từ ly giác sang độ: 1 ly giác = 0.05625 độ
+                manual_elev_left_deg = manual_elev_left_mils * 0.05625
+                manual_elev_right_deg = manual_elev_right_mils * 0.05625
+                manual_dir_left_deg = manual_dir_left_mils * 0.05625
+                manual_dir_right_deg = manual_dir_right_mils * 0.05625
+                
+                # CỘNG lượng sửa tự động + lượng sửa thủ công
+                elev_left_corr = auto_elev_left + manual_elev_left_deg
+                elev_right_corr = auto_elev_right + manual_elev_right_deg
+                dir_left_corr = auto_dir_left + manual_dir_left_deg
+                dir_right_corr = auto_dir_right + manual_dir_right_deg
+            except ValueError:
+                # Nếu input không hợp lệ, chỉ dùng giá trị tự động
+                elev_left_corr = auto_elev_left
+                elev_right_corr = auto_elev_right
+                dir_left_corr = auto_dir_left
+                dir_right_corr = auto_dir_right
+            
+            # Hiển thị góc mặc định
+            self.angle_cells['default_elevation_left'].setText(f"{aim_elevation_left:.1f}°")
+            self.angle_cells['default_elevation_right'].setText(f"{aim_elevation_right:.1f}°")
+            self.angle_cells['default_direction_left'].setText(f"{aim_direction_left:.1f}°")
+            self.angle_cells['default_direction_right'].setText(f"{aim_direction_right:.1f}°")
+
+            # Hiển thị góc sau khi áp dụng lượng sửa (tự động + thủ công)
+            corrected_elevation_left = aim_elevation_left + elev_left_corr
+            corrected_elevation_right = aim_elevation_right + elev_right_corr
+            corrected_direction_left = aim_direction_left + dir_left_corr
+            corrected_direction_right = aim_direction_right + dir_right_corr
+
+            self.angle_cells['corrected_elevation_left'].setText(f"{corrected_elevation_left:.1f}°")
+            self.angle_cells['corrected_elevation_right'].setText(f"{corrected_elevation_right:.1f}°")
+            self.angle_cells['corrected_direction_left'].setText(f"{corrected_direction_left:.1f}°")
+            self.angle_cells['corrected_direction_right'].setText(f"{corrected_direction_right:.1f}°")
+
+        else:  # manual mode
             # Chế độ thủ công - lấy lượng sửa từ input (đơn vị: ly giác)
             try:
                 elev_left_corr_mils = float(self.manual_elevation_left_input.text() or 0)
@@ -1049,10 +1146,41 @@ class BallisticCalculatorWidget(QWidget):
 
     def get_corrections(self):
         """Lấy lượng sửa (không bao gồm góc gốc) - đã chuyển đổi sang độ."""
-        if self.toggle_switch.is_auto:
+        current_mode = self.mode_selector.get_mode()
+        
+        if current_mode == "auto":
             # Chế độ tự động - calculate_corrections() đã trả về giá trị bằng độ
             elev_left_corr, elev_right_corr, dir_left_corr, dir_right_corr = self.calculate_corrections()
-        else:
+        
+        elif current_mode == "semi-auto":
+            # Chế độ bán tự động - tính toán tự động CỘNG THÊM lượng sửa thủ công
+            auto_elev_left, auto_elev_right, auto_dir_left, auto_dir_right = self.calculate_corrections()
+            
+            try:
+                manual_elev_left_mils = float(self.manual_elevation_left_input.text() or 0)
+                manual_elev_right_mils = float(self.manual_elevation_right_input.text() or 0)
+                manual_dir_left_mils = float(self.manual_direction_left_input.text() or 0)
+                manual_dir_right_mils = float(self.manual_direction_right_input.text() or 0)
+                
+                # Chuyển đổi từ ly giác sang độ
+                manual_elev_left_deg = manual_elev_left_mils * 0.05625
+                manual_elev_right_deg = manual_elev_right_mils * 0.05625
+                manual_dir_left_deg = manual_dir_left_mils * 0.05625
+                manual_dir_right_deg = manual_dir_right_mils * 0.05625
+                
+                # CỘNG lượng sửa tự động + lượng sửa thủ công
+                elev_left_corr = auto_elev_left + manual_elev_left_deg
+                elev_right_corr = auto_elev_right + manual_elev_right_deg
+                dir_left_corr = auto_dir_left + manual_dir_left_deg
+                dir_right_corr = auto_dir_right + manual_dir_right_deg
+            except ValueError:
+                # Fallback về auto nếu input không hợp lệ
+                elev_left_corr = auto_elev_left
+                elev_right_corr = auto_elev_right
+                dir_left_corr = auto_dir_left
+                dir_right_corr = auto_dir_right
+        
+        else:  # manual mode
             # Chế độ thủ công - cần chuyển từ ly giác sang độ
             try:
                 elev_left_corr_mils = float(self.manual_elevation_left_input.text() or 0)

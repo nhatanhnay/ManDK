@@ -371,3 +371,91 @@ def quick_add_sensor_module(node_id: str, name: str, description: str = ""):
 def change_config_module(node_id: str, module_name: str, parameter: str, value: Any):
     """Thay đổi thông số module nhanh chóng."""
     return update_module_parameter(node_id, module_name, parameter, value)
+
+
+def get_node_id_from_index(node_index: int) -> Optional[str]:
+    """
+    Lấy node_id từ node index (dùng cho CAN bus mapping).
+    
+    Args:
+        node_index: Index của node (0-255)
+    
+    Returns:
+        node_id (str) hoặc None nếu không tìm thấy
+    """
+    try:
+        # Load node index mapping from unified config
+        node_index_mapping = unified_threshold_manager.config_data.get('node_index_mapping', {})
+        
+        # Search for node with matching index
+        for node_id, node_info in node_index_mapping.items():
+            if node_info.get('index') == node_index:
+                return node_id
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error getting node_id from index {node_index}: {e}")
+        return None
+
+
+def get_node_index_from_id(node_id: str) -> Optional[int]:
+    """
+    Lấy node index từ node_id (dùng cho CAN bus mapping).
+    
+    Args:
+        node_id: ID của node
+    
+    Returns:
+        node_index (int) hoặc None nếu không tìm thấy
+    """
+    try:
+        # Load node index mapping from unified config
+        node_index_mapping = unified_threshold_manager.config_data.get('node_index_mapping', {})
+        
+        if node_id in node_index_mapping:
+            return node_index_mapping[node_id].get('index')
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error getting index from node_id '{node_id}': {e}")
+        return None
+
+
+def get_node_can_id(node_id: str) -> Optional[str]:
+    """
+    Lấy CAN ID của node từ node_id.
+    
+    Args:
+        node_id: ID của node
+    
+    Returns:
+        CAN ID (str, ví dụ: "0x300") hoặc None nếu không tìm thấy
+    """
+    try:
+        # Load node index mapping from unified config
+        node_index_mapping = unified_threshold_manager.config_data.get('node_index_mapping', {})
+        
+        if node_id in node_index_mapping:
+            return node_index_mapping[node_id].get('can_id')
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error getting CAN ID from node_id '{node_id}': {e}")
+        return None
+
+
+def get_all_node_mappings() -> Dict[str, Dict[str, Any]]:
+    """
+    Lấy tất cả node mappings (index, CAN ID, description).
+    
+    Returns:
+        Dictionary với format: {node_id: {index, can_id, description}}
+    """
+    try:
+        return unified_threshold_manager.config_data.get('node_index_mapping', {})
+    except Exception as e:
+        print(f"Error getting node mappings: {e}")
+        return {}

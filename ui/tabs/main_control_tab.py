@@ -447,10 +447,6 @@ class MainTab(GridBackgroundWidget):
 
     def update_half_compass_angles(self, corrections):
         """Lưu lượng sửa từ ballistic calculator - sẽ được áp dụng trong update_data()."""
-        print(f"[DEBUG] Lưu lượng sửa:")
-        print(f"  Elevation correction L: {corrections['elevation_correction_left']:.1f}° | R: {corrections['elevation_correction_right']:.1f}°")
-        print(f"  Direction correction L: {corrections['direction_correction_left']:.1f}° | R: {corrections['direction_correction_right']:.1f}°")
-        
         # Chỉ lưu lượng sửa, không thay đổi config
         self.elevation_correction_left = corrections['elevation_correction_left']
         self.elevation_correction_right = corrections['elevation_correction_right']
