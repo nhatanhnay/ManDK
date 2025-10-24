@@ -6,7 +6,28 @@ Cung cấp các hàm tiện ích để thêm, sửa, xóa modules và thông s�
 import json
 import os
 from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 from .unified_threshold_manager import unified_threshold_manager
+
+@dataclass
+class ModuleConfig:
+    name: str
+    default_voltage: float
+    default_current: float
+    default_power: float
+    default_resistance: float
+    default_temperature: float
+    min_voltage: float
+    max_voltage: float
+    max_current: float
+    max_temperature: float
+    min_current: float = 0.0
+    min_power: float = 0.0
+    max_power: float = 0.0
+    min_resistance: float = 0.0
+    max_resistance: float = 0.0
+    min_temperature: float = 0.0
+    description: str = ""
 
 class ConfigManager:
     """Class quản lý cấu hình modules."""
