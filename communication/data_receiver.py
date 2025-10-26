@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 import os
 from typing import List
+import serial
+import threading
 
 # Thêm các lớp từ targeting system
 class Point2D:
@@ -157,6 +159,66 @@ def load_firing_table_from_csv(csv_path: str = "table1.csv"):
 def unpack_bits(n: int, width: int) -> List[bool]:
     return [bool((n>>i) & 1) for i in range(0, width)]
 
+def extract_heading(binary_string: bytes) -> float:
+    """Trích xuất giá trị hướng từ dữ liệu la bàn."""
+    text = binary_string.decode(errors='ignore').strip()
+    words = text.split(',')
+    try:
+        return float(words[1])
+    except (ValueError, IndexError):
+        print(f"Lỗi gói tin compass. Raw data: {binary_string}")
+        return 0.0
+
+def compass_reader_thread():
+    """Thread đọc dữ liệu từ la bàn và cập nhật W_DIRECTION."""
+    PORT_NAME = "/dev/ttyUSB0"
+    
+    try:
+        Com_Compass = serial.Serial(
+            port=PORT_NAME, 
+            timeout=1, 
+            baudrate=4800, 
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE, 
+            stopbits=serial.STOPBITS_ONE
+        )
+        print(f"Compass reader đã khởi động thành công trên {PORT_NAME}")
+        
+        # Ghi log thành công
+        try:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Compass reader đã khởi động thành công trên {PORT_NAME}", "SUCCESS")
+        except:
+            pass
+        
+        while True:
+            if Com_Compass.in_waiting >= 19:
+                data_Compass = Com_Compass.read(19)
+                data_CP = extract_heading(data_Compass)
+                config.W_DIRECTION = data_CP
+                print(f"Compass: {data_CP:.2f}°")
+                
+    except serial.SerialException as e:
+        error_msg = f"Lỗi Compass: Không thể mở {PORT_NAME}. Compass reader sẽ không hoạt động. Chi tiết: {e}"
+        print(error_msg)
+        try:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(error_msg, "ERROR")
+        except:
+            pass
+    except Exception as e:
+        error_msg = f"Lỗi không xác định trong compass reader: {e}"
+        print(error_msg)
+        try:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(error_msg, "ERROR")
+        except:
+            pass
+    finally:
+        if 'Com_Compass' in locals():
+            Com_Compass.close()
+            print("Compass serial port đã được đóng")
+
 # Khởi tạo targeting system
 ship = Ship()
 range_data, angle_data = load_firing_table_from_csv()
@@ -268,6 +330,10 @@ def update_module_from_can_message(node_id, module_index, voltage, current, powe
 
 
 def run():
+    # Khởi động thread đọc la bàn
+    compass_thread = threading.Thread(target=compass_reader_thread, daemon=True)
+    compass_thread.start()
+    
     distance, direction = 9000, 36
     distance = random.uniform(4000, 5000)  # Giả lập khoảng cách đến mục tiêu (m)
     
