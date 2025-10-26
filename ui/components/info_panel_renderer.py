@@ -209,8 +209,8 @@ class InfoPanelRenderer:
         visible_height = content_height
         self.max_scroll = max(0, total_height - visible_height)
 
-        # Vẽ các module với offset scroll
-        current_y = content_y - self.scroll_offset
+        # Vẽ các module với offset scroll - dịch xuống 10px để tránh cắt chữ
+        current_y = content_y - self.scroll_offset + 10
 
         for i, module_data in enumerate(modules_list):
             module_rect = QRect(content_x + 20, current_y, module_width, self.module_height)
