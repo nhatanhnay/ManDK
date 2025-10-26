@@ -14,7 +14,6 @@ from ui.widgets.half_compass_widget import HalfCircleWidget
 from ui.widgets.ammunition_widget import BulletWidget
 from ui.widgets.numeric_display_widget import NumericDataWidget
 from ui.widgets.custom_message_box_widget import CustomMessageBox
-from ui.widgets.auth_widget import AuthWidget
 from ui.components.ui_utilities import SVGColorChanger, ColoredSVGButton
 import ui.ui_config as config
 from communication.data_sender import sender
@@ -36,8 +35,6 @@ class FireControl(QtCore.QObject):
             unified_threshold_manager.load_config()
         except ImportError:
             print("Không thể tải unified threshold manager")
-        
-        self.is_authenticated = False
 
     def setupUi(self, MainWindow):
         # Đảm bảo mw_width và total_h luôn có giá trị trước khi dùng ở bất kỳ đâu
@@ -103,15 +100,8 @@ class FireControl(QtCore.QObject):
         
         tab_height = 34
         
-        # Create authentication widget first (covers entire window)
-        self.auth_widget = AuthWidget(MainWindow)
-        self.auth_widget.setGeometry(0, 0, mw_width, total_h)
-        self.auth_widget.authenticated.connect(self._on_authenticated)
-        self.auth_widget.show()
-        
         self.main_tab = MainTab(self.config, MainWindow)
         self.main_tab.setGeometry(0, tab_height, mw_width, total_h - tab_height)
-        self.main_tab.hide()  # Hide initially until authenticated
         self.centralwidget = self.main_tab
 
         # --- Chrome-like top tab bar (full-width) ---
@@ -237,11 +227,6 @@ class FireControl(QtCore.QObject):
 
         # Ensure the tab bar stays above other children
         self.tab_bar.raise_()
-        
-        # Hide tab bar initially until authenticated
-        self.tab_bar.hide()
-        self.left_line.hide()
-        self.right_line.hide()
 
         MainWindow.setCentralWidget(self.centralwidget)
 
@@ -249,29 +234,8 @@ class FireControl(QtCore.QObject):
         self.tab_activating.installEventFilter(self)
         self.tab_other.installEventFilter(self)
 
-        # Đảm bảo tab Main là active khi khởi tạo, line left/right đúng vị trí
-        # (will be called after authentication)
-    
-    def _on_authenticated(self):
-        """Handle successful authentication"""
-        from ui.tabs.event_log_tab import LogTab
-        
-        self.is_authenticated = True
-        
-        # Hide auth widget
-        self.auth_widget.hide()
-        
-        # Show main UI components
-        self.main_tab.show()
-        self.tab_bar.show()
-        self.left_line.show()
-        self.right_line.show()
-        
-        # Show the main tab
+        # Show the main tab initially
         self._show_main_tab()
-        
-        # Log successful login
-        LogTab.log("Đăng nhập admin thành công", "SUCCESS")
 
 
     def _update_tab_styles(self, active_tab):
