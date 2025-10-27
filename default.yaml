@@ -97,13 +97,13 @@ Widgets:
     style: "background-color: rgb(255, 255, 255);"
     width: 350
     x: 60
-    y: 350
+    y: 310
   HalfCompassRight:
     height: 370
     style: "background-color: rgb(255, 255, 255);"
     width: 370
     x: 890
-    y: 350
+    y: 310
   NumericDataWidget:
     height: 500
     width: 500

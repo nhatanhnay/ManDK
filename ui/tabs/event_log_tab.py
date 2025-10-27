@@ -9,7 +9,7 @@ from ..widgets.ammunition_widget import BulletWidget
 from ..widgets.custom_message_box_widget import CustomMessageBox
 from ..components.ui_utilities import ColoredSVGButton
 import ui.ui_config as config
-from communication.data_sender import sender
+from communication.data_sender import sender_ammo_status, sender_angle_direction
 import yaml
 import random
 import math

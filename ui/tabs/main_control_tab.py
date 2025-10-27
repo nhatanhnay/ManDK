@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox, QPushButton
 from PyQt5.QtCore import Qt, QRectF
 from PyQt5.QtGui import QPainter, QPen, QColor, QBrush, QLinearGradient
 from ..widgets.compass_widget import AngleCompass
@@ -8,9 +8,10 @@ from ..widgets.numeric_display_widget import NumericDataWidget
 from ..widgets.ammunition_widget import BulletWidget
 from ..widgets.custom_message_box_widget import CustomMessageBox
 from ..widgets.ballistic_calculator_dialog import BallisticCalculatorWidget
+from ..widgets.angle_input_dialog import AngleInputDialog
 from ..components.ui_utilities import ColoredSVGButton
 import ui.ui_config as config
-from communication.data_sender import sender
+from communication.data_sender import sender_angle_direction, sender_ammo_status
 import yaml
 import random
 import math
@@ -164,6 +165,43 @@ class MainTab(GridBackgroundWidget):
         
         self.half_compass_left.setStyleSheet(half_left_config['style'])
 
+        # Thêm nút nhập góc cho half compass trái
+        # Tính toán chiều rộng nút bằng với tổng chiều rộng của 2 wheel + spacing
+        # wheel_width = total_width * 0.25, có 2 wheel, spacing = 20
+        # total_wheel_width = 2 * wheel_width + spacing = total_width * 0.5 + 20
+        button_width_left = half_left_config['width'] * 0.5 + 20
+        button_x_left = half_left_config['x'] + (half_left_config['width'] - button_width_left) / 2
+        
+        # Khoảng cách từ wheel đến khung số là 5px
+        # Khung số có chiều cao 20px, cách wheel 5px từ đáy wheel
+        # Nút nằm dưới khung số với khoảng cách 2px
+        button_y_offset_left = -5  # 5px (wheel->khung) + 20px (chiều cao khung) + 2px (khung->nút)
+        
+        self.angle_input_button_left = QPushButton("Nhập góc", self)
+        self.angle_input_button_left.setGeometry(QtCore.QRect(
+            int(button_x_left),
+            half_left_config['y'] + 30 + half_left_config['height'] + button_y_offset_left,
+            int(button_width_left),
+            25  # Chiều cao 25px
+        ))
+        self.angle_input_button_left.setStyleSheet("""
+            QPushButton {
+                background-color: #0078d4;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #106ebe;
+            }
+            QPushButton:pressed {
+                background-color: #005a9e;
+            }
+        """)
+        self.angle_input_button_left.clicked.connect(lambda: self.on_angle_input_clicked('left'))
+
         compass_right_config = self.config['Widgets']['CompassRight']
         self.compass_right = AngleCompass(45, 40, compass_right_config.get('redlines', [210, 330]), 0, self)
         
@@ -185,6 +223,39 @@ class MainTab(GridBackgroundWidget):
         )
         
         self.half_compass_right.setStyleSheet(half_right_config['style'])
+
+        # Thêm nút nhập góc cho half compass phải
+        # Tính toán chiều rộng nút bằng với tổng chiều rộng của 2 wheel + spacing
+        button_width_right = half_right_config['width'] * 0.5 + 20
+        button_x_right = half_right_config['x'] + (half_right_config['width'] - button_width_right) / 2
+        
+        # Khoảng cách từ khung số đến nút là 2px
+        button_y_offset_right = -5  # 5px (wheel->khung) + 20px (chiều cao khung) + 2px (khung->nút)
+        
+        self.angle_input_button_right = QPushButton("Nhập góc", self)
+        self.angle_input_button_right.setGeometry(QtCore.QRect(
+            int(button_x_right),
+            half_left_config['y'] + 30 + half_right_config['height'] + button_y_offset_right,
+            int(button_width_right),
+            25  # Chiều cao 25px
+        ))
+        self.angle_input_button_right.setStyleSheet("""
+            QPushButton {
+                background-color: #0078d4;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #106ebe;
+            }
+            QPushButton:pressed {
+                background-color: #005a9e;
+            }
+        """)
+        self.angle_input_button_right.clicked.connect(lambda: self.on_angle_input_clicked('right'))
 
         # Thêm NumericDataWidget từ config
         numeric_config = self.config['Widgets']['NumericDataWidget']
@@ -349,10 +420,10 @@ class MainTab(GridBackgroundWidget):
             # Gửi lệnh qua CAN bus và kiểm tra kết quả
             can_success = True
             if len(left_selected) > 0:
-                if not sender(0x31, left_selected):
+                if not sender_ammo_status(0x31, left_selected):
                     can_success = False
             if len(right_selected) > 0:
-                if not sender(0x32, right_selected):
+                if not sender_ammo_status(0x32, right_selected):
                     can_success = False
             
             # Ghi log và thông báo kết quả
@@ -444,6 +515,59 @@ class MainTab(GridBackgroundWidget):
             self.calculator_widget.current_direction_right = config.DIRECTION_R
             self.calculator_widget.update_angle_display()
             self.calculator_widget.show()
+
+    def on_angle_input_clicked(self, side):
+        """Xử lý sự kiện khi nhấn nút nhập góc.
+        
+        Args:
+            side: 'left' hoặc 'right' để xác định giàn trái hay phải
+        """
+        # Lấy góc hiện tại tùy theo side
+        if side == 'left':
+            current_elevation = config.ANGLE_L
+            current_direction = config.DIRECTION_L
+            side_text = "Trái"
+            idx = 0x31  # ID cho giàn trái
+        else:
+            current_elevation = config.ANGLE_R
+            current_direction = config.DIRECTION_R
+            side_text = "Phải"
+            idx = 0x32  # ID cho giàn phải
+        
+        # Hiển thị dialog nhập góc
+        dialog = AngleInputDialog(side_text, current_elevation, current_direction, self)
+        
+        if dialog.exec_() == AngleInputDialog.Accepted:
+            # Lấy giá trị đã nhập
+            elevation, direction = dialog.get_values()
+            
+            # Gửi lệnh qua CAN bus (không cập nhật config trước)
+            # Config sẽ được cập nhật khi nhận phản hồi từ CAN bus trong data_receiver
+            from communication.data_sender import sender_angle_direction
+            
+            # Chuyển đổi sang int cho CAN bus
+            # Giả sử format: angle và direction được nhân 10 để giữ 1 chữ số thập phân
+            elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+            direction_int = int(direction * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+            
+            # Gửi lệnh với idx tương ứng
+            if sender_angle_direction(elevation_int, direction_int, idx):
+                from ui.tabs.event_log_tab import LogTab
+                LogTab.log(f"Đã gửi lệnh góc tầm {elevation:.1f}° và góc hướng {direction:.1f}° cho giàn {side_text}", "SUCCESS")
+                CustomMessageBox.information(
+                    "Đã gửi lệnh",
+                    f"Đã gửi lệnh điều khiển góc cho giàn {side_text}:\n"
+                    f"Góc tầm: {elevation:.1f}°\n"
+                    f"Góc hướng: {direction:.1f}°\n\n"
+                    f"Hệ thống đang điều chỉnh..."
+                )
+            else:
+                from ui.tabs.event_log_tab import LogTab
+                LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn {side_text}", "ERROR")
+                CustomMessageBox.warning(
+                    "Lỗi",
+                    f"Không thể gửi lệnh qua CAN bus!\nVui lòng kiểm tra kết nối."
+                )
 
     def update_half_compass_angles(self, corrections):
         """Lưu lượng sửa từ ballistic calculator - sẽ được áp dụng trong update_data()."""
