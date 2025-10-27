@@ -534,40 +534,63 @@ class MainTab(GridBackgroundWidget):
             side_text = "Phải"
             idx = 0x32  # ID cho giàn phải
         
-        # Hiển thị dialog nhập góc
-        dialog = AngleInputDialog(side_text, current_elevation, current_direction, self)
+        # Tạo overlay dialog nếu chưa có hoặc tạo mới
+        if not hasattr(self, 'angle_input_dialog'):
+            self.angle_input_dialog = AngleInputDialog(side_text, current_elevation, current_direction, self)
+            # Đặt overlay chiếm toàn bộ diện tích của tab
+            self.angle_input_dialog.setGeometry(0, 34, self.width(), self.height() - 34)
+            self.angle_input_dialog.raise_()  # Đưa lên trên cùng
+            
+            # Kết nối signal
+            self.angle_input_dialog.accepted.connect(lambda: self._handle_angle_input_accepted(side, idx))
+        else:
+            # Cập nhật giá trị hiện tại
+            self.angle_input_dialog.side = side_text
+            self.angle_input_dialog.elevation_value = current_elevation
+            self.angle_input_dialog.direction_value = current_direction
+            self.angle_input_dialog.elevation_input.setText(str(current_elevation))
+            self.angle_input_dialog.direction_input.setText(str(current_direction))
+            # Cập nhật lại geometry trong trường hợp window bị resize
+            self.angle_input_dialog.setGeometry(0, 34, self.width(), self.height() - 34)
+            self.angle_input_dialog.raise_()
         
-        if dialog.exec_() == AngleInputDialog.Accepted:
-            # Lấy giá trị đã nhập
-            elevation, direction = dialog.get_values()
-            
-            # Gửi lệnh qua CAN bus (không cập nhật config trước)
-            # Config sẽ được cập nhật khi nhận phản hồi từ CAN bus trong data_receiver
-            from communication.data_sender import sender_angle_direction
-            
-            # Chuyển đổi sang int cho CAN bus
-            # Giả sử format: angle và direction được nhân 10 để giữ 1 chữ số thập phân
-            elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
-            direction_int = int(direction * 10)  # Nhân 10 để giữ 1 chữ số thập phân
-            
-            # Gửi lệnh với idx tương ứng
-            if sender_angle_direction(elevation_int, direction_int, idx):
-                from ui.tabs.event_log_tab import LogTab
-                LogTab.log(f"Đã gửi lệnh góc tầm {elevation:.1f}° và góc hướng {direction:.1f}° cho giàn {side_text}", "SUCCESS")
-                CustomMessageBox.information(
-                    "Đã gửi lệnh",
-                    f"Đã gửi lệnh điều khiển góc cho giàn {side_text}:\n"
-                    f"Góc tầm: {elevation:.1f}°\n"
-                    f"Góc hướng: {direction:.1f}°\n\n"
-                    f"Hệ thống đang điều chỉnh..."
-                )
-            else:
-                from ui.tabs.event_log_tab import LogTab
-                LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn {side_text}", "ERROR")
-                CustomMessageBox.warning(
-                    "Lỗi",
-                    f"Không thể gửi lệnh qua CAN bus!\nVui lòng kiểm tra kết nối."
-                )
+        # Hiển thị overlay
+        self.angle_input_dialog.show()
+        
+    def _handle_angle_input_accepted(self, side, idx):
+        """Xử lý khi người dùng xác nhận nhập góc."""
+        # Lấy giá trị đã nhập
+        elevation, direction = self.angle_input_dialog.get_values()
+        
+        side_text = "Trái" if side == 'left' else "Phải"
+        
+        # Gửi lệnh qua CAN bus (không cập nhật config trước)
+        # Config sẽ được cập nhật khi nhận phản hồi từ CAN bus trong data_receiver
+        from communication.data_sender import sender_angle_direction
+        
+        # Chuyển đổi sang int cho CAN bus
+        # Giả sử format: angle và direction được nhân 10 để giữ 1 chữ số thập phân
+        elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+        direction_int = int(direction * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+        
+        # Gửi lệnh với idx tương ứng
+        if sender_angle_direction(elevation_int, direction_int, idx):
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Đã gửi lệnh góc tầm {elevation:.1f}° và góc hướng {direction:.1f}° cho giàn {side_text}", "SUCCESS")
+            CustomMessageBox.information(
+                "Đã gửi lệnh",
+                f"Đã gửi lệnh điều khiển góc cho giàn {side_text}:\n"
+                f"Góc tầm: {elevation:.1f}°\n"
+                f"Góc hướng: {direction:.1f}°\n\n"
+                f"Hệ thống đang điều chỉnh..."
+            )
+        else:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn {side_text}", "ERROR")
+            CustomMessageBox.warning(
+                "Lỗi",
+                f"Không thể gửi lệnh qua CAN bus!\nVui lòng kiểm tra kết nối."
+            )
 
     def update_half_compass_angles(self, corrections):
         """Lưu lượng sửa từ ballistic calculator - sẽ được áp dụng trong update_data()."""

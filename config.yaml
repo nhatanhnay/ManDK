@@ -1,27 +1,27 @@
 ButtonColors:
   disabled:
-    border_color: '#30ffffff'
+    border_color: "#30ffffff"
     icon_alpha: 48
-    icon_color: '#ffffff'
-    text_color: '#30ffffff'
-    top_color: '#121212'
+    icon_color: "#ffffff"
+    text_color: "#30ffffff"
+    top_color: "#121212"
   enabled:
-    border_color: '#30ffffff'
+    border_color: "#30ffffff"
     icon_alpha: 48
-    icon_color: '#000000'
-    text_color: '#000000'
-    top_color: '#ffffff'
+    icon_color: "#000000"
+    text_color: "#000000"
+    top_color: "#ffffff"
   selected:
-    border_color: '#000000'
+    border_color: "#000000"
     icon_alpha: 255
-    icon_color: '#000000'
-    text_color: '#5f5f5f'
-    top_color: '#f8f8f8'
+    icon_color: "#000000"
+    text_color: "#5f5f5f"
+    top_color: "#f8f8f8"
 MainWindow:
   background_animation: true
   fixed: true
   height: 1024
-  style: 'background-color: #121212;'
+  style: "background-color: #121212;"
   width: 1280
 Widgets:
   BulletWidget:
@@ -32,7 +32,8 @@ Widgets:
   Buttons:
     Calculator:
       height: 100
-      style: "QPushButton {\n    background-color: rgb(0, 100, 150);\n    color: white;\
+      style:
+        "QPushButton {\n    background-color: rgb(0, 100, 150);\n    color: white;\
         \ font-size: 14px;\n    border-radius: 5px;\n}\nQPushButton:pressed {\n  \
         \  background-color: rgb(0, 50, 75);\n}\nQPushButton:hover {\n    background-color:\
         \ rgb(0, 150, 225);\n}\n"
@@ -42,7 +43,8 @@ Widgets:
       y: 370
     Cancel:
       height: 100
-      style: "QPushButton {\n    background-color: rgb(130, 0, 0);\n    color: white;\
+      style:
+        "QPushButton {\n    background-color: rgb(130, 0, 0);\n    color: white;\
         \ font-size: 14px;\n    border-radius: 5px;\n}\nQPushButton:pressed {\n  \
         \  background-color: rgb(50, 0, 0);\n}\nQPushButton:hover {\n    background-color:\
         \ rgb(200, 0, 0);\n}\n"
@@ -52,7 +54,8 @@ Widgets:
       y: 370
     LaunchAll:
       height: 100
-      style: "QPushButton {\n    background-color: rgb(50, 50, 50);\n    color: white;\
+      style:
+        "QPushButton {\n    background-color: rgb(50, 50, 50);\n    color: white;\
         \ font-size: 14px;\n    border-radius: 5px;\n}\nQPushButton:pressed {\n  \
         \  background-color: rgb(25, 25, 25);\n}\nQPushButton:hover {\n    background-color:\
         \ rgb(100, 100, 100);\n}\n"
@@ -62,7 +65,8 @@ Widgets:
       y: 370
     OK:
       height: 100
-      style: "QPushButton {\n    background-color: rgb(0, 130, 0);\n    color: white;\
+      style:
+        "QPushButton {\n    background-color: rgb(0, 130, 0);\n    color: white;\
         \ font-size: 14px;\n    border-radius: 5px;\n}\nQPushButton:pressed {\n  \
         \  background-color: rgb(0, 50, 0);\n}\nQPushButton:hover {\n    background-color:\
         \ rgb(0, 200, 0);\n}\n"
@@ -73,18 +77,18 @@ Widgets:
   CompassLeft:
     height: 370
     redlines:
-    - 210
-    - 360
-    style: 'background-color: rgb(255, 255, 255);'
+      - 150
+      - 390
+    style: "background-color: rgb(255, 255, 255);"
     width: 370
     x: 20
     y: 650
   CompassRight:
     height: 370
     redlines:
-    - 180
-    - 330
-    style: 'background-color: rgb(255, 255, 255);'
+      - 150
+      - 390
+    style: "background-color: rgb(255, 255, 255);"
     width: 370
     x: 890
     y: 650
@@ -95,16 +99,16 @@ Widgets:
     y: 50
   HalfCompassLeft:
     height: 350
-    style: 'background-color: rgb(255, 255, 255);'
+    style: "background-color: rgb(255, 255, 255);"
     width: 350
     x: 30
-    y: 350
+    y: 315
   HalfCompassRight:
     height: 350
-    style: 'background-color: rgb(255, 255, 255);'
+    style: "background-color: rgb(255, 255, 255);"
     width: 370
     x: 890
-    y: 350
+    y: 315
   NumericDataWidget:
     height: 500
     width: 500
