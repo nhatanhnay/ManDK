@@ -19,3 +19,7 @@ FIRE_R = [False for i in range(18)]
 NUMBER_LIST = [[ 2,10,14,17,11, 3],
                [ 6,16, 8, 5,15, 7],
                [ 4,12,18,13, 9, 1]]
+
+# Trạng thái đèn thông báo
+POWER_STATUS = True   # True = xanh (bình thường), False = đỏ (bất thường)
+READY_STATUS = True   # True = xanh (bình thường), False = đỏ (bất thường)

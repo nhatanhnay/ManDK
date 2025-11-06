@@ -12,6 +12,7 @@ from ui.components.grid_background_renderer import GridBackgroundWidget
 from ui.components.system_diagram_renderer import SystemDiagramRenderer
 from ui.components.info_panel_renderer import InfoPanelRenderer
 from ui.components.event_handler import InfoTabEventHandler
+from ui.widgets.status_indicator_widget import StatusIndicatorWidget
 
 
 # Refactored: Use common utilities instead of duplicated function
@@ -43,6 +44,10 @@ class InfoTab(GridBackgroundWidget):
 
         # Set UI refresh callback for threshold updates
         self.event_handler.set_ui_refresh_callback(self.update)
+        
+        # Tạo status indicator widget ở góc dưới trái
+        self.status_indicator = StatusIndicatorWidget(self)
+        self.status_indicator.move(20, self.height() - self.status_indicator.height() - 20)
 
         # Timer để cập nhật dữ liệu và mô phỏng - Refactored to use constant
         self.data_timer = QTimer()
@@ -58,12 +63,24 @@ class InfoTab(GridBackgroundWidget):
         """Cập nhật dữ liệu mô phỏng và refresh display."""
         system_data_manager.simulate_data()
         module_manager.simulate_realtime_data()  # Cập nhật dữ liệu module
+        
+        # Cập nhật trạng thái đèn từ config
+        import ui.ui_config as config
+        self.status_indicator.set_power_status(config.POWER_STATUS)
+        self.status_indicator.set_ready_status(config.READY_STATUS)
+        
         self.update()  # Trigger repaint
 
     def _update_animation(self):
         """Cập nhật animation cho connection lines."""
         if self.system_diagram_renderer.animation_enabled:
             self.update()  # Trigger repaint for animation
+    
+    def resizeEvent(self, event):
+        """Xử lý khi resize để giữ status indicator ở góc dưới trái."""
+        super().resizeEvent(event)
+        # Cập nhật vị trí status indicator
+        self.status_indicator.move(20, self.height() - self.status_indicator.height() - 20)
 
     def mousePressEvent(self, event):
         """Xử lý sự kiện click chuột."""
