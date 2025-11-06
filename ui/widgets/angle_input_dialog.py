@@ -3,20 +3,22 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QGroupBox, QGraphicsOpacityEffect
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator, QPainter, QColor
+import ui.ui_config as config
 
 
 class AngleInputDialog(QWidget):
-    """Widget overlay để nhập góc tầm và góc hướng - hiển thị trên tab thay vì window riêng."""
+    """Widget overlay để nhập khoảng cách và góc hướng - hiển thị trên tab thay vì window riêng."""
     
     # Signal để thông báo khi đóng dialog
     accepted = pyqtSignal()
     rejected = pyqtSignal()
     
-    def __init__(self, side="Trái", current_elevation=0, current_direction=0, parent=None):
+    def __init__(self, side="Trái", current_distance=0, current_direction=0, is_left_side=True, parent=None):
         super().__init__(parent)
         self.side = side
-        self.elevation_value = current_elevation
+        self.distance_value = current_distance
         self.direction_value = current_direction
+        self.is_left_side = is_left_side  # True nếu giàn trái, False nếu giàn phải
         
         # Làm cho widget này hiển thị trên tất cả widget khác
         self.setWindowFlags(Qt.Widget)
@@ -39,30 +41,50 @@ class AngleInputDialog(QWidget):
         
         # Container widget cho dialog box (sẽ được center)
         dialog_container = QWidget()
-        dialog_container.setMinimumWidth(500)
-        dialog_container.setMaximumWidth(600)
-        dialog_container.setMaximumHeight(400)
+        dialog_container.setMinimumWidth(600)
+        dialog_container.setMaximumWidth(700)
+        dialog_container.setMaximumHeight(500)
         
         layout = QVBoxLayout()
         layout.setSpacing(15)
         layout.setContentsMargins(20, 20, 20, 20)
         
-        # Group box cho góc tầm
-        elevation_group = QGroupBox("Góc tầm (độ)")
-        elevation_layout = QVBoxLayout()
-        elevation_layout.setSpacing(8)
+        # Group box cho khoảng cách
+        distance_group = QGroupBox("Khoảng cách (m)")
+        distance_layout = QVBoxLayout()
+        distance_layout.setSpacing(8)
         
-        self.elevation_input = QLineEdit()
-        self.elevation_input.setPlaceholderText("Nhập góc tầm (0-60)")
-        self.elevation_input.setText(str(self.elevation_value))
+        self.distance_input = QLineEdit()
+        self.distance_input.setPlaceholderText("Nhập khoảng cách (0-20000)")
+        self.distance_input.setText(str(self.distance_value))
+        self.distance_input.setMinimumHeight(50)  # Tăng chiều cao ô nhập
         
-        # Validator cho góc tầm (0-60 độ)
-        elevation_validator = QDoubleValidator(0.0, 60.0, 1)
-        elevation_validator.setNotation(QDoubleValidator.StandardNotation)
-        self.elevation_input.setValidator(elevation_validator)
+        # Validator cho khoảng cách (0-20000 mét)
+        distance_validator = QDoubleValidator(0.0, 20000.0, 1)
+        distance_validator.setNotation(QDoubleValidator.StandardNotation)
+        self.distance_input.setValidator(distance_validator)
         
-        elevation_layout.addWidget(self.elevation_input)
-        elevation_group.setLayout(elevation_layout)
+        distance_layout.addWidget(self.distance_input)
+        
+        # Nút chuyển đổi chế độ Auto/Manual
+        mode_button_layout = QHBoxLayout()
+        mode_button_layout.setSpacing(15)
+        
+        self.mode_label = QLabel()
+        self.mode_label.setMinimumHeight(40)  # Tăng chiều cao label
+        self.mode_label.setMinimumWidth(180)  # Tăng chiều rộng label
+        self.update_mode_label()
+        mode_button_layout.addWidget(self.mode_label)
+        
+        self.toggle_mode_button = QPushButton()
+        self.update_mode_button()
+        self.toggle_mode_button.clicked.connect(self.toggle_distance_mode)
+        self.toggle_mode_button.setMinimumWidth(180)  # Tăng chiều rộng tối thiểu
+        self.toggle_mode_button.setMinimumHeight(40)  # Tăng chiều cao
+        mode_button_layout.addWidget(self.toggle_mode_button)
+        
+        distance_layout.addLayout(mode_button_layout)
+        distance_group.setLayout(distance_layout)
         
         # Group box cho góc hướng
         direction_group = QGroupBox("Góc hướng (độ)")
@@ -106,7 +128,7 @@ class AngleInputDialog(QWidget):
         
         # Add all to dialog container layout
         layout.addWidget(title_label)
-        layout.addWidget(elevation_group)
+        layout.addWidget(distance_group)
         layout.addWidget(direction_group)
         layout.addSpacing(10)
         layout.addLayout(button_layout)
@@ -161,8 +183,8 @@ class AngleInputDialog(QWidget):
                 color: #000000;
                 border: 2px solid #666666;
                 border-radius: 5px;
-                padding: 12px 15px;
-                font-size: 18px;
+                padding: 15px 20px;
+                font-size: 22px;
                 font-weight: bold;
                 selection-background-color: #0078d4;
                 selection-color: white;
@@ -174,6 +196,10 @@ class AngleInputDialog(QWidget):
             QLineEdit:hover {
                 border: 2px solid #888888;
                 background-color: #fafafa;
+            }
+            QLineEdit:disabled {
+                background-color: #cccccc;
+                color: #666666;
             }
             QPushButton {
                 background-color: #0078d4;
@@ -213,6 +239,64 @@ class AngleInputDialog(QWidget):
             }
         """)
         
+    def toggle_distance_mode(self):
+        """Chuyển đổi giữa chế độ tự động và thủ công."""
+        if self.is_left_side:
+            config.DISTANCE_MODE_AUTO_L = not config.DISTANCE_MODE_AUTO_L
+        else:
+            config.DISTANCE_MODE_AUTO_R = not config.DISTANCE_MODE_AUTO_R
+        
+        self.update_mode_label()
+        self.update_mode_button()
+        
+    def update_mode_label(self):
+        """Cập nhật label hiển thị chế độ hiện tại."""
+        is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
+        mode_text = "Chế độ: <b>Tự động</b>" if is_auto else "Chế độ: <b>Thủ công</b>"
+        self.mode_label.setText(mode_text)
+        bg_color = "#004400" if is_auto else "#443300"
+        border_color = "#00ff00" if is_auto else "#ffaa00"
+        text_color = "#00ff00" if is_auto else "#ffaa00"
+        self.mode_label.setStyleSheet(f"""
+            QLabel {{
+                color: {text_color};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 15px;
+                background-color: {bg_color};
+                border: 2px solid {border_color};
+                border-radius: 5px;
+            }}
+        """)
+        
+        # Vô hiệu hóa/kích hoạt ô nhập khoảng cách dựa trên chế độ
+        self.distance_input.setEnabled(not is_auto)
+        
+    def update_mode_button(self):
+        """Cập nhật text và style của nút chuyển chế độ."""
+        is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
+        button_text = "Chuyển sang Thủ công" if is_auto else "Chuyển sang Tự động"
+        self.toggle_mode_button.setText(button_text)
+        
+        button_color = "#ff6600" if is_auto else "#00aa00"
+        self.toggle_mode_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {button_color};
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {button_color}dd;
+            }}
+            QPushButton:pressed {{
+                background-color: {button_color}aa;
+            }}
+        """)
+    
     def accept(self):
         """Xử lý khi nhấn nút Xác nhận."""
         self.accepted.emit()
@@ -224,16 +308,16 @@ class AngleInputDialog(QWidget):
         self.hide()
         
     def get_values(self):
-        """Lấy giá trị góc tầm và góc hướng đã nhập."""
+        """Lấy giá trị khoảng cách và góc hướng đã nhập."""
         try:
-            elevation = float(self.elevation_input.text()) if self.elevation_input.text() else self.elevation_value
+            distance = float(self.distance_input.text()) if self.distance_input.text() else self.distance_value
             direction = float(self.direction_input.text()) if self.direction_input.text() else self.direction_value
             
             # Clamp values trong range hợp lệ
-            elevation = max(0.0, min(60.0, elevation))
+            distance = max(0.0, min(20000.0, distance))
             direction = max(-180.0, min(180.0, direction))
             
-            return elevation, direction
+            return distance, direction
         except ValueError:
             # Trả về giá trị mặc định nếu parse lỗi
-            return self.elevation_value, self.direction_value
+            return self.distance_value, self.direction_value

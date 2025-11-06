@@ -4,7 +4,7 @@ DIRECTION_R = 0
 ANGLE_L = 0
 ANGLE_R = 0
 DISTANCE_L = 1300
-DISTANCE_R = 1342
+DISTANCE_R = 9600
 AIM_DIRECTION_L = 0
 AIM_DIRECTION_R = 0
 AIM_ANGLE_L = 0
@@ -23,3 +23,7 @@ NUMBER_LIST = [[ 2,10,14,17,11, 3],
 # Trạng thái đèn thông báo
 POWER_STATUS = True   # True = xanh (bình thường), False = đỏ (bất thường)
 READY_STATUS = True   # True = xanh (bình thường), False = đỏ (bất thường)
+
+# Chế độ nhập khoảng cách (True = Tự động từ CAN, False = Thủ công)
+DISTANCE_MODE_AUTO_L = True  # Chế độ tự động cho giàn trái
+DISTANCE_MODE_AUTO_R = True  # Chế độ tự động cho giàn phải

@@ -253,8 +253,8 @@ class FiringTableInterpolator:
             Góc tầm tính bằng độ (degrees)
         """
         angle_mils = self._interpolate_value(target_range, self.angles)
-        # Quy đổi từ ly giác sang độ: 1 ly giác = 0.05625 độ
-        angle_degrees = angle_mils * 0.05625
+        # Quy đổi từ ly giác sang độ: 1 ly giác = 0.06 độ
+        angle_degrees = angle_mils * 0.06
         return angle_degrees
     
     def interpolate_z(self, target_range: float) -> float:

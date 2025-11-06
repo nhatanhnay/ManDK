@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QMessageBox, QPushButton
+from PyQt5.QtWidgets import QMessageBox, QPushButton, QLabel
 from PyQt5.QtCore import Qt, QRectF
 from PyQt5.QtGui import QPainter, QPen, QColor, QBrush, QLinearGradient
 from ..widgets.compass_widget import AngleCompass
@@ -165,7 +165,7 @@ class MainTab(GridBackgroundWidget):
         
         self.half_compass_left.setStyleSheet(half_left_config['style'])
 
-        # Thêm nút nhập góc cho half compass trái
+        # Thêm nút nhập khoảng cách cho half compass trái
         # Tính toán chiều rộng nút bằng với tổng chiều rộng của 2 wheel + spacing
         # wheel_width = total_width * 0.25, có 2 wheel, spacing = 20
         # total_wheel_width = 2 * wheel_width + spacing = total_width * 0.5 + 20
@@ -177,7 +177,7 @@ class MainTab(GridBackgroundWidget):
         # Nút nằm dưới khung số với khoảng cách 2px
         button_y_offset_left = -5  # 5px (wheel->khung) + 20px (chiều cao khung) + 2px (khung->nút)
         
-        self.angle_input_button_left = QPushButton("Nhập góc", self)
+        self.angle_input_button_left = QPushButton("Nhập Cự ly - Góc", self)
         self.angle_input_button_left.setGeometry(QtCore.QRect(
             int(button_x_left),
             half_left_config['y'] + 30 + half_left_config['height'] + button_y_offset_left,
@@ -224,7 +224,7 @@ class MainTab(GridBackgroundWidget):
         
         self.half_compass_right.setStyleSheet(half_right_config['style'])
 
-        # Thêm nút nhập góc cho half compass phải
+        # Thêm nút nhập khoảng cách cho half compass phải
         # Tính toán chiều rộng nút bằng với tổng chiều rộng của 2 wheel + spacing
         button_width_right = half_right_config['width'] * 0.5 + 20
         button_x_right = half_right_config['x'] + (half_right_config['width'] - button_width_right) / 2
@@ -232,7 +232,7 @@ class MainTab(GridBackgroundWidget):
         # Khoảng cách từ khung số đến nút là 2px
         button_y_offset_right = -5  # 5px (wheel->khung) + 20px (chiều cao khung) + 2px (khung->nút)
         
-        self.angle_input_button_right = QPushButton("Nhập góc", self)
+        self.angle_input_button_right = QPushButton("Nhập Cự ly - Góc", self)
         self.angle_input_button_right.setGeometry(QtCore.QRect(
             int(button_x_right),
             half_left_config['y'] + 30 + half_right_config['height'] + button_y_offset_right,
@@ -419,12 +419,37 @@ class MainTab(GridBackgroundWidget):
             
             # Gửi lệnh qua CAN bus và kiểm tra kết quả
             can_success = True
+            failed_can_data = []
+            
             if len(left_selected) > 0:
+                # Tạo CAN data cho giàn trái
+                flags = [0]*18
+                for i in left_selected:
+                    flags[i-1] = 1
+                flag1 = int(''.join(str(b) for b in flags[:8][::-1]), 2)
+                flag2 = int(''.join(str(b) for b in flags[8:16][::-1]), 2)
+                flag3 = int(''.join(str(b) for b in flags[16:][::-1]), 2)
+                can_data_left = [0x31, 0x31, flag1, flag2, flag3, 0x11]
+                can_data_left_hex = ' '.join([f'0x{byte:02X}' for byte in can_data_left])
+                
                 if not sender_ammo_status(0x31, left_selected):
                     can_success = False
+                    failed_can_data.append(f"Giàn trái: [{can_data_left_hex}]")
+                    
             if len(right_selected) > 0:
+                # Tạo CAN data cho giàn phải
+                flags = [0]*18
+                for i in right_selected:
+                    flags[i-1] = 1
+                flag1 = int(''.join(str(b) for b in flags[:8][::-1]), 2)
+                flag2 = int(''.join(str(b) for b in flags[8:16][::-1]), 2)
+                flag3 = int(''.join(str(b) for b in flags[16:][::-1]), 2)
+                can_data_right = [0x31, 0x32, flag1, flag2, flag3, 0x11]
+                can_data_right_hex = ' '.join([f'0x{byte:02X}' for byte in can_data_right])
+                
                 if not sender_ammo_status(0x32, right_selected):
                     can_success = False
+                    failed_can_data.append(f"Giàn phải: [{can_data_right_hex}]")
             
             # Ghi log và thông báo kết quả
             from ui.tabs.event_log_tab import LogTab
@@ -437,7 +462,8 @@ class MainTab(GridBackgroundWidget):
                     f"Đã phóng thành công {selected_count} ống!"
                 )
             else:
-                warning_msg = f"Đã cập nhật trạng thái {selected_count} ống nhưng không thể gửi lệnh qua CAN bus"
+                failed_data_str = " | ".join(failed_can_data)
+                warning_msg = f"Đã cập nhật trạng thái {selected_count} ống nhưng không thể gửi lệnh qua CAN bus - CAN Data: {failed_data_str} - ID: 0x29"
                 LogTab.log(warning_msg, "WARNING")
                 CustomMessageBox.warning(
                     "Cảnh báo",
@@ -517,79 +543,137 @@ class MainTab(GridBackgroundWidget):
             self.calculator_widget.show()
 
     def on_angle_input_clicked(self, side):
-        """Xử lý sự kiện khi nhấn nút nhập góc.
+        """Xử lý sự kiện khi nhấn nút nhập khoảng cách và góc hướng.
         
         Args:
             side: 'left' hoặc 'right' để xác định giàn trái hay phải
         """
-        # Lấy góc hiện tại tùy theo side
+        # Lấy khoảng cách và hướng hiện tại tùy theo side
         if side == 'left':
-            current_elevation = config.ANGLE_L
+            current_distance = config.DISTANCE_L
             current_direction = config.DIRECTION_L
             side_text = "Trái"
             idx = 0x31  # ID cho giàn trái
         else:
-            current_elevation = config.ANGLE_R
+            current_distance = config.DISTANCE_R
             current_direction = config.DIRECTION_R
             side_text = "Phải"
             idx = 0x32  # ID cho giàn phải
         
         # Tạo overlay dialog nếu chưa có hoặc tạo mới
+        is_left = (side == 'left')
         if not hasattr(self, 'angle_input_dialog'):
-            self.angle_input_dialog = AngleInputDialog(side_text, current_elevation, current_direction, self)
+            self.angle_input_dialog = AngleInputDialog(side_text, current_distance, current_direction, is_left, self)
             # Đặt overlay chiếm toàn bộ diện tích của tab
             self.angle_input_dialog.setGeometry(0, 34, self.width(), self.height() - 34)
             self.angle_input_dialog.raise_()  # Đưa lên trên cùng
-            
-            # Kết nối signal
-            self.angle_input_dialog.accepted.connect(lambda: self._handle_angle_input_accepted(side, idx))
         else:
             # Cập nhật giá trị hiện tại
             self.angle_input_dialog.side = side_text
-            self.angle_input_dialog.elevation_value = current_elevation
+            self.angle_input_dialog.is_left_side = is_left
+            self.angle_input_dialog.distance_value = current_distance
             self.angle_input_dialog.direction_value = current_direction
-            self.angle_input_dialog.elevation_input.setText(str(current_elevation))
+            self.angle_input_dialog.distance_input.setText(str(current_distance))
             self.angle_input_dialog.direction_input.setText(str(current_direction))
+            # Cập nhật label và button chế độ
+            self.angle_input_dialog.update_mode_label()
+            self.angle_input_dialog.update_mode_button()
+            # Cập nhật title
+            title_label = self.angle_input_dialog.findChild(QLabel)
+            if title_label and "Nhập góc" in title_label.text():
+                title_label.setText(f"Nhập góc - Giàn {side_text}")
             # Cập nhật lại geometry trong trường hợp window bị resize
             self.angle_input_dialog.setGeometry(0, 34, self.width(), self.height() - 34)
             self.angle_input_dialog.raise_()
+        
+        # Disconnect tất cả signal cũ và kết nối lại với giá trị mới
+        try:
+            self.angle_input_dialog.accepted.disconnect()
+        except:
+            pass
+        self.angle_input_dialog.accepted.connect(lambda: self._handle_angle_input_accepted(side, idx))
         
         # Hiển thị overlay
         self.angle_input_dialog.show()
         
     def _handle_angle_input_accepted(self, side, idx):
-        """Xử lý khi người dùng xác nhận nhập góc."""
+        """Xử lý khi người dùng xác nhận nhập khoảng cách và góc hướng."""
         # Lấy giá trị đã nhập
-        elevation, direction = self.angle_input_dialog.get_values()
+        distance, direction = self.angle_input_dialog.get_values()
         
         side_text = "Trái" if side == 'left' else "Phải"
         
-        # Gửi lệnh qua CAN bus (không cập nhật config trước)
-        # Config sẽ được cập nhật khi nhận phản hồi từ CAN bus trong data_receiver
-        from communication.data_sender import sender_angle_direction
+        # Cập nhật khoảng cách vào config (chỉ khi ở chế độ thủ công)
+        if side == 'left':
+            if not config.DISTANCE_MODE_AUTO_L:  # Chỉ cập nhật khi ở chế độ thủ công
+                config.DISTANCE_L = distance
+        else:
+            if not config.DISTANCE_MODE_AUTO_R:  # Chỉ cập nhật khi ở chế độ thủ công
+                config.DISTANCE_R = distance
         
-        # Chuyển đổi sang int cho CAN bus
-        # Giả sử format: angle và direction được nhân 10 để giữ 1 chữ số thập phân
-        elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
-        direction_int = int(direction * 10)  # Nhân 10 để giữ 1 chữ số thập phân
-        
-        # Gửi lệnh với idx tương ứng
-        if sender_angle_direction(elevation_int, direction_int, idx):
-            from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"Đã gửi lệnh góc tầm {elevation:.1f}° và góc hướng {direction:.1f}° cho giàn {side_text}", "SUCCESS")
-            CustomMessageBox.information(
-                "Đã gửi lệnh",
-                f"Đã gửi lệnh điều khiển góc cho giàn {side_text}:\n"
-                f"Góc tầm: {elevation:.1f}°\n"
-                f"Góc hướng: {direction:.1f}°\n\n"
-                f"Hệ thống đang điều chỉnh..."
+        # Tính toán góc tầm từ khoảng cách sử dụng bảng bắn
+        interpolator = get_firing_table_interpolator()
+        if interpolator:
+            elevation = interpolator.interpolate_angle(distance)
+            
+            # Cập nhật góc mục tiêu
+            if side == 'left':
+                config.AIM_ANGLE_L = elevation
+                config.AIM_DIRECTION_L = direction
+            else:
+                config.AIM_ANGLE_R = elevation
+                config.AIM_DIRECTION_R = direction
+            
+            # Gửi lệnh qua CAN bus
+            from communication.data_sender import sender_angle_direction
+            
+            # Chuyển đổi sang int cho CAN bus
+            elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+            direction_int = int(direction * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+            
+            # Tạo CAN message data để log
+            can_data = [
+                idx,
+                elevation_int & 0xFF,
+                (elevation_int >> 8) & 0xFF,
+                direction_int & 0xFF,
+                (direction_int >> 8) & 0xFF,
+                0x11
+            ]
+            can_data_hex = ' '.join([f'0x{byte:02X}' for byte in can_data])
+            can_data_explained = (
+                f"[Giàn: {'Trái' if idx == 0x31 else 'Phải'} (0x{idx:02X}), "
+                f"Góc tầm: {elevation:.1f}° (0x{elevation_int:04X}), "
+                f"Góc hướng: {direction:.1f}° (0x{direction_int:04X}), "
+                f"Lệnh: 0x{can_data[5]:02X}]"
             )
+            
+            # Gửi lệnh với idx tương ứng
+            if sender_angle_direction(elevation_int, direction_int, idx):
+                from ui.tabs.event_log_tab import LogTab
+                LogTab.log(f"Đã gửi lệnh khoảng cách {distance:.1f}m (góc tầm {elevation:.1f}°) và góc hướng {direction:.1f}° cho giàn {side_text} - CAN Data: [{can_data_hex}]", "SUCCESS")
+                CustomMessageBox.information(
+                    "Đã gửi lệnh",
+                    f"Đã gửi lệnh điều khiển cho giàn {side_text}:\n"
+                    f"Khoảng cách: {distance:.1f} m\n"
+                    f"Góc tầm (tính toán): {elevation:.1f}°\n"
+                    f"Góc hướng: {direction:.1f}°\n\n"
+                    f"Hệ thống đang điều chỉnh..."
+                )
+            else:
+                from ui.tabs.event_log_tab import LogTab
+                LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn {side_text} - CAN Data: [{can_data_hex}] - ID: 0x29", "ERROR")
+                LogTab.log(f"Chi tiết CAN Data: {can_data_explained}", "ERROR")
+                CustomMessageBox.warning(
+                    "Lỗi",
+                    f"Không thể gửi lệnh qua CAN bus!\nVui lòng kiểm tra kết nối."
+                )
         else:
             from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn {side_text}", "ERROR")
+            LogTab.log(f"Không thể tính toán góc tầm - bảng bắn chưa được tải", "ERROR")
             CustomMessageBox.warning(
                 "Lỗi",
-                f"Không thể gửi lệnh qua CAN bus!\nVui lòng kiểm tra kết nối."
+                f"Không thể tính toán góc tầm!\nBảng bắn chưa được tải."
             )
 
     def update_half_compass_angles(self, corrections):
@@ -752,7 +836,7 @@ class MainTab(GridBackgroundWidget):
         # Cập nhật trạng thái của OK Button và Cancel Button
         self._update_action_buttons_state()
         w_direction = random.randint(30,60)  # Giả lập hướng của tàu so với địa lý (độ, 0 = Bắc)
-        config.DISTANCE_L = random.uniform(4000, 5000)  # Giả lập khoảng cách đến mục tiêu (m)
+        # config.DISTANCE_L = random.uniform(4000, 5000)  # Giả lập khoảng cách đến mục tiêu (m)
         # DIRECTION_L/R = hướng hiện tại, AIM_DIRECTION_L/R = hướng mục tiêu
         # Áp dụng lượng sửa vào hướng mục tiêu hiển thị
         self.compass_left.update_angle(
@@ -793,6 +877,10 @@ class MainTab(GridBackgroundWidget):
         aim_direction_left_corrected = config.AIM_DIRECTION_L + self.direction_correction_left
         aim_direction_right_corrected = config.AIM_DIRECTION_R + self.direction_correction_right
         
+        # Tạo text hiển thị chế độ
+        mode_text_l = "AUTO" if config.DISTANCE_MODE_AUTO_L else "MANUAL"
+        mode_text_r = "AUTO" if config.DISTANCE_MODE_AUTO_R else "MANUAL"
+        
         self.numeric_data_widget.update_data(
             **{
                 "Hướng ngắm hiện tại (độ)": (f"{config.DIRECTION_L:.1f}", f"{config.DIRECTION_R:.1f}"),
@@ -801,6 +889,7 @@ class MainTab(GridBackgroundWidget):
                 "Góc tầm mục tiêu (độ)": (f"{aim_angle_left_corrected:.1f}", f"{aim_angle_right_corrected:.1f}"),
                 "Pháo sẵn sàng": (str(sum(self.bullet_widget.left_launcher_status)), str(sum(self.bullet_widget.right_launcher_status))),
                 "Pháo đã chọn": (str(len(self.bullet_widget.left_selected_launchers)), str(len(self.bullet_widget.right_selected_launchers))),
-                "Khoảng cách (m)": (f"{config.DISTANCE_L:.2f}", f"{config.DISTANCE_R:.2f}")
+                "Khoảng cách (m)": (f"{config.DISTANCE_L:.2f}", f"{config.DISTANCE_R:.2f}"),
+                "Chế độ K/C": (mode_text_l, mode_text_r)
             }
         )
