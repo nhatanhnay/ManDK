@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QDoubleValidator, QIntValidator
 import ui.ui_config as config
+from communication.data_sender import sender_angle_direction
 
 
 class BinaryValidator(QIntValidator):
@@ -35,7 +36,7 @@ class CapsuleInput(QWidget):
 
         # Container cho viên thuốc
         capsule = QWidget()
-        capsule.setFixedHeight(50)
+        capsule.setFixedHeight(40)
         capsule_layout = QHBoxLayout(capsule)
         capsule_layout.setContentsMargins(0, 0, 0, 0)
         capsule_layout.setSpacing(0)
@@ -43,7 +44,7 @@ class CapsuleInput(QWidget):
         # Label bên trái
         self.label = QLabel(label_text)
         self.label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.label.setFixedHeight(50)
+        self.label.setFixedHeight(40)
         self.label.setStyleSheet("""
             QLabel {
                 background-color: #525252;
@@ -69,7 +70,7 @@ class CapsuleInput(QWidget):
         self.input_field = QLineEdit(default_value)
         self.input_field.setValidator(QDoubleValidator())
         self.input_field.setAlignment(Qt.AlignRight | Qt.AlignVCenter)  # Căn phải
-        self.input_field.setFixedHeight(50)
+        self.input_field.setFixedHeight(40)
         self.input_field.setStyleSheet("""
             QLineEdit {
                 background-color: #525252;
@@ -101,7 +102,7 @@ class CapsuleInput(QWidget):
         # Đơn vị bên phải
         self.unit_label = QLabel(unit_text)
         self.unit_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)  # Căn phải
-        self.unit_label.setFixedHeight(50)
+        self.unit_label.setFixedHeight(40)
         self.unit_label.setStyleSheet("""
             QLabel {
                 background-color: #525252;
@@ -334,6 +335,9 @@ class BallisticCalculatorWidget(QWidget):
         self.setup_ui()
         self.apply_styles()
         self.connect_signals()
+        
+        # Đặt chế độ ban đầu và cập nhật trạng thái các input
+        self.on_mode_changed("auto")
         self.update_angle_display()
 
     def setup_ui(self):
@@ -362,7 +366,7 @@ class BallisticCalculatorWidget(QWidget):
         """Tạo panel bên trái với các input fields."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
 
         # Title
         title = QLabel("Nhập thông số")
@@ -429,33 +433,46 @@ class BallisticCalculatorWidget(QWidget):
         """Tạo panel bên phải với mode selector và bảng."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setSpacing(20)
+        layout.setSpacing(15)
 
         # Mode selector (thay thế toggle switch)
         self.mode_selector = ModeSelector()
         self.mode_selector.on_mode_change_callback = self.on_mode_changed
         layout.addWidget(self.mode_selector)
 
-        # Input fields cho mode thủ công
+        # Input fields cho vị trí mục tiêu (thay thế input cho từng pháo)
         self.manual_panel = QWidget()
         manual_layout = QVBoxLayout(self.manual_panel)
-        manual_layout.setSpacing(12)
+        manual_layout.setSpacing(8)
 
-        self.manual_elevation_left_input = self.create_input_row("Thay đổi góc tầm trái", "0", "ly giác")
-        manual_layout.addWidget(self.manual_elevation_left_input)
-        self.manual_elevation_right_input = self.create_input_row("Thay đổi góc tầm phải", "0", "ly giác")
-        manual_layout.addWidget(self.manual_elevation_right_input)
+        # Khoảng cách từ tàu đến mục tiêu
+        self.ship_to_target_distance_input = self.create_input_row(
+            "Khoảng cách tàu - mục tiêu", "0", "m",
+            note_text="Khoảng cách từ quang điện tử trên tàu đến mục tiêu"
+        )
+        manual_layout.addWidget(self.ship_to_target_distance_input)
 
-        self.manual_direction_left_input = self.create_input_row("Thay đổi góc hướng trái", "0", "ly giác")
-        manual_layout.addWidget(self.manual_direction_left_input)
-        self.manual_direction_right_input = self.create_input_row("Thay đổi góc hướng phải", "0", "ly giác")
-        manual_layout.addWidget(self.manual_direction_right_input)
+        # Góc hướng từ tàu đến mục tiêu
+        self.ship_to_target_azimuth_input = self.create_input_row(
+            "Góc hướng tàu - mục tiêu", "0", "độ",
+            note_text="Góc hướng từ tàu đến mục tiêu (0° = phía trước, 90° = phải, -90° = trái)"
+        )
+        manual_layout.addWidget(self.ship_to_target_azimuth_input)
+
+        # Labels hiển thị khoảng cách tính được cho từng pháo (read-only)
+        distance_title = QLabel("Khoảng cách tính toán cho từng pháo:")
+        distance_title.setStyleSheet("font-size: 13px; font-weight: bold; color: #94A3B8; margin-top: 10px;")
+        manual_layout.addWidget(distance_title)
+
+        self.cannon_left_distance_label = self.create_readonly_display("Khoảng cách pháo trái", "0", "m")
+        manual_layout.addWidget(self.cannon_left_distance_label)
+
+        self.cannon_right_distance_label = self.create_readonly_display("Khoảng cách pháo phải", "0", "m")
+        manual_layout.addWidget(self.cannon_right_distance_label)
 
         # Disable mặc định khi ở chế độ tự động
-        self.manual_elevation_left_input.setEnabled(False)
-        self.manual_elevation_right_input.setEnabled(False)
-        self.manual_direction_left_input.setEnabled(False)
-        self.manual_direction_right_input.setEnabled(False)
+        self.ship_to_target_distance_input.setEnabled(False)
+        self.ship_to_target_azimuth_input.setEnabled(False)
 
 
         layout.addWidget(self.manual_panel)
@@ -510,7 +527,7 @@ class BallisticCalculatorWidget(QWidget):
         row_widget = QWidget()
         row_layout = QVBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(6)
+        row_layout.setSpacing(3)
         
         # Capsule input ở trên
         capsule_input = CapsuleInput(label_text, default_value, unit)
@@ -524,14 +541,14 @@ class BallisticCalculatorWidget(QWidget):
         # Label ghi chú cố định ở dưới (nếu có note_text)
         if note_text:
             note_label = QLabel(note_text)
-            note_label.setFixedHeight(30)
+            note_label.setFixedHeight(20)
             note_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             note_label.setWordWrap(True)
             note_label.setStyleSheet("""
                 QLabel {
                     background-color: transparent;
                     color: #94A3B8;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-style: italic;
                     padding-left: 5px;
                     padding-right: 5px;
@@ -552,6 +569,30 @@ class BallisticCalculatorWidget(QWidget):
         row_widget.textChanged = capsule_input.textChanged
         
         return row_widget
+
+    def create_readonly_display(self, label_text, default_value, unit):
+        """Tạo một widget hiển thị read-only (không cho phép chỉnh sửa).
+        
+        Args:
+            label_text: Text hiển thị bên trái
+            default_value: Giá trị mặc định
+            unit: Đơn vị hiển thị bên phải
+        """
+        # Tạo capsule input nhưng disabled
+        capsule = CapsuleInput(label_text, default_value, unit)
+        capsule.input_field.setReadOnly(True)
+        capsule.setStyleSheet("""
+            QLineEdit {
+                background-color: #3a3a3a;
+                color: #94A3B8;
+                border: none;
+                font-size: 15px;
+                font-weight: bold;
+                font-family: 'Tahoma', Arial, sans-serif;
+                padding-right: 10px;
+            }
+        """)
+        return capsule
 
     def create_angle_table(self):
         """Tạo bảng hiển thị góc tầm và góc hướng."""
@@ -661,7 +702,7 @@ class BallisticCalculatorWidget(QWidget):
         """Tạo widget hiển thị giá trị tiêu chuẩn."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Nhiệt độ không khí tiêu chuẩn
@@ -685,7 +726,7 @@ class BallisticCalculatorWidget(QWidget):
         
         # Reset Button (bên trái)
         self.reset_btn = QPushButton("↻")
-        self.reset_btn.setFixedSize(50, 50)
+        self.reset_btn.setFixedSize(40, 40)
         self.reset_btn.setCursor(Qt.PointingHandCursor)
         self.reset_btn.clicked.connect(self.on_reset_clicked)
         self.reset_btn.setStyleSheet("""
@@ -693,8 +734,8 @@ class BallisticCalculatorWidget(QWidget):
                 background-color: #6B7280;
                 color: #F1F5F9;
                 border: none;
-                border-radius: 25px;
-                font-size: 28px;
+                border-radius: 20px;
+                font-size: 24px;
                 font-weight: bold;
                 font-family: 'Tahoma', Arial, sans-serif;
             }
@@ -711,7 +752,7 @@ class BallisticCalculatorWidget(QWidget):
 
         # OK Button (checkmark icon)
         self.ok_btn = QPushButton("✓")
-        self.ok_btn.setFixedSize(50, 50)
+        self.ok_btn.setFixedSize(40, 40)
         self.ok_btn.setCursor(Qt.PointingHandCursor)
         self.ok_btn.clicked.connect(self.on_ok_clicked)
         self.ok_btn.setStyleSheet("""
@@ -719,8 +760,8 @@ class BallisticCalculatorWidget(QWidget):
                 background-color: #10B981;
                 color: #F1F5F9;
                 border: none;
-                border-radius: 25px;
-                font-size: 24px;
+                border-radius: 20px;
+                font-size: 20px;
                 font-weight: bold;
                 font-family: 'Tahoma', Arial, sans-serif;
             }
@@ -735,7 +776,7 @@ class BallisticCalculatorWidget(QWidget):
 
         # Cancel Button (X icon)
         self.cancel_btn = QPushButton("✕")
-        self.cancel_btn.setFixedSize(50, 50)
+        self.cancel_btn.setFixedSize(40, 40)
         self.cancel_btn.setCursor(Qt.PointingHandCursor)
         self.cancel_btn.clicked.connect(self.on_cancel_clicked)
         self.cancel_btn.setStyleSheet("""
@@ -743,8 +784,8 @@ class BallisticCalculatorWidget(QWidget):
                 background-color: #DC2626;
                 color: #F1F5F9;
                 border: none;
-                border-radius: 25px;
-                font-size: 24px;
+                border-radius: 20px;
+                font-size: 20px;
                 font-weight: bold;
                 font-family: 'Tahoma', Arial, sans-serif;
             }
@@ -768,6 +809,84 @@ class BallisticCalculatorWidget(QWidget):
         if hasattr(self, 'on_angles_updated') and callable(self.on_angles_updated):
             self.on_angles_updated(corrections)
 
+        # Lấy góc MỤC TIÊU từ config (góc từ nội suy bảng bắn)
+        aim_elevation_left = config.AIM_ANGLE_L
+        aim_elevation_right = config.AIM_ANGLE_R
+        aim_direction_left = config.AIM_DIRECTION_L
+        aim_direction_right = config.AIM_DIRECTION_R
+        
+        # Nếu chưa có góc hướng mục tiêu (chưa nhập tọa độ), sử dụng góc hướng hiện tại từ cảm biến
+        if aim_direction_left == 0:
+            aim_direction_left = config.DIRECTION_L
+        if aim_direction_right == 0:
+            aim_direction_right = config.DIRECTION_R
+        
+        # Tính góc đã được điều chỉnh = góc mục tiêu + lượng sửa
+        elevation_left = aim_elevation_left + corrections['elevation_correction_left']
+        direction_left = aim_direction_left + corrections['direction_correction_left']
+        elevation_left_int = int(elevation_left * 10)  # Chuyển sang số nguyên * 10
+        direction_left_int = int(direction_left * 10)  # Chuyển sang số nguyên * 10
+        
+        # Tạo CAN data cho giàn trái
+        idx_left = 0x31
+        can_data_left = [
+            idx_left,
+            elevation_left_int & 0xFF,
+            (elevation_left_int >> 8) & 0xFF,
+            direction_left_int & 0xFF,
+            (direction_left_int >> 8) & 0xFF,
+            0x11
+        ]
+        can_data_hex_left = ' '.join([f'0x{byte:02X}' for byte in can_data_left])
+        can_data_explained_left = (
+            f"[Giàn: Trái (0x{idx_left:02X}), "
+            f"Góc tầm: {elevation_left:.1f}° (0x{elevation_left_int:04X}), "
+            f"Góc hướng: {direction_left:.1f}° (0x{direction_left_int:04X}), "
+            f"Lệnh: 0x{can_data_left[5]:02X}]"
+        )
+        
+        # Gửi lệnh cho giàn trái
+        if sender_angle_direction(elevation_left_int, direction_left_int, idx=idx_left):
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Đã gửi lệnh góc tầm {elevation_left:.1f}° và góc hướng {direction_left:.1f}° cho giàn Trái - CAN Data: [{can_data_hex_left}]", "SUCCESS")
+        else:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn Trái - CAN Data: [{can_data_hex_left}] - ID: 0x29", "ERROR")
+            LogTab.log(f"Chi tiết CAN Data: {can_data_explained_left}", "ERROR")
+        
+        # Gửi CAN message cho giàn phải (idx=0x32)
+        elevation_right = aim_elevation_right + corrections['elevation_correction_right']
+        direction_right = aim_direction_right + corrections['direction_correction_right']
+        elevation_right_int = int(elevation_right * 10)  # Chuyển sang số nguyên * 10
+        direction_right_int = int(direction_right * 10)  # Chuyển sang số nguyên * 10
+        
+        # Tạo CAN data cho giàn phải
+        idx_right = 0x32
+        can_data_right = [
+            idx_right,
+            elevation_right_int & 0xFF,
+            (elevation_right_int >> 8) & 0xFF,
+            direction_right_int & 0xFF,
+            (direction_right_int >> 8) & 0xFF,
+            0x11
+        ]
+        can_data_hex_right = ' '.join([f'0x{byte:02X}' for byte in can_data_right])
+        can_data_explained_right = (
+            f"[Giàn: Phải (0x{idx_right:02X}), "
+            f"Góc tầm: {elevation_right:.1f}° (0x{elevation_right_int:04X}), "
+            f"Góc hướng: {direction_right:.1f}° (0x{direction_right_int:04X}), "
+            f"Lệnh: 0x{can_data_right[5]:02X}]"
+        )
+        
+        # Gửi lệnh cho giàn phải
+        if sender_angle_direction(elevation_right_int, direction_right_int, idx=idx_right):
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Đã gửi lệnh góc tầm {elevation_right:.1f}° và góc hướng {direction_right:.1f}° cho giàn Phải - CAN Data: [{can_data_hex_right}]", "SUCCESS")
+        else:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn Phải - CAN Data: [{can_data_hex_right}] - ID: 0x29", "ERROR")
+            LogTab.log(f"Chi tiết CAN Data: {can_data_explained_right}", "ERROR")
+
         # Ẩn widget
         self.hide()
 
@@ -790,11 +909,9 @@ class BallisticCalculatorWidget(QWidget):
         self.kacn_input.setText("0")
         self.target_angle_input.setText("0")
         
-        # Reset các input thủ công về 0
-        self.manual_elevation_left_input.setText("0")
-        self.manual_elevation_right_input.setText("0")
-        self.manual_direction_left_input.setText("0")
-        self.manual_direction_right_input.setText("0")
+        # Reset các input vị trí mục tiêu về 0
+        self.ship_to_target_distance_input.setText("0")
+        self.ship_to_target_azimuth_input.setText("0")
         
         # Đảm bảo giá trị tiêu chuẩn không thay đổi
         self.std_temp_input.setText(str(self.standard_temp))
@@ -822,11 +939,9 @@ class BallisticCalculatorWidget(QWidget):
         self.kacn_input.textChanged.connect(self.update_angle_display)
         self.target_angle_input.textChanged.connect(self.update_angle_display)
 
-        # Kết nối input fields của mode thủ công
-        self.manual_elevation_left_input.textChanged.connect(self.update_angle_display)
-        self.manual_direction_left_input.textChanged.connect(self.update_angle_display)
-        self.manual_elevation_right_input.textChanged.connect(self.update_angle_display)
-        self.manual_direction_right_input.textChanged.connect(self.update_angle_display)
+        # Kết nối input fields cho vị trí mục tiêu
+        self.ship_to_target_distance_input.textChanged.connect(self.on_target_position_changed)
+        self.ship_to_target_azimuth_input.textChanged.connect(self.on_target_position_changed)
 
         # Kết nối giá trị tiêu chuẩn
         self.std_temp_input.textChanged.connect(self.update_angle_display)
@@ -843,15 +958,13 @@ class BallisticCalculatorWidget(QWidget):
         is_semi_auto = (mode == "semi-auto")
         is_manual = (mode == "manual")
         
-        # Enable/disable các input thủ công
-        # - Tự động: disable (tính toán tự động)
-        # - Bán tự động: enable (cho phép nhập lượng sửa)
+        # Enable/disable các input vị trí mục tiêu
+        # - Tự động: disable (lấy từ CAN bus)
+        # - Bán tự động: enable (cho phép nhập)
         # - Thủ công: enable (nhập hoàn toàn thủ công)
         enable_manual_inputs = is_semi_auto or is_manual
-        self.manual_elevation_left_input.setEnabled(enable_manual_inputs)
-        self.manual_direction_left_input.setEnabled(enable_manual_inputs)
-        self.manual_elevation_right_input.setEnabled(enable_manual_inputs)
-        self.manual_direction_right_input.setEnabled(enable_manual_inputs)
+        self.ship_to_target_distance_input.setEnabled(enable_manual_inputs)
+        self.ship_to_target_azimuth_input.setEnabled(enable_manual_inputs)
 
         # Enable/disable các input bên trái (điều kiện môi trường)
         # - Tự động: enable (sử dụng để tính toán)
@@ -870,6 +983,78 @@ class BallisticCalculatorWidget(QWidget):
         # Cập nhật lại góc khi chuyển mode
         self.update_angle_display()
 
+    def on_target_position_changed(self):
+        """Xử lý khi vị trí mục tiêu thay đổi - tính khoảng cách từ từng pháo đến mục tiêu."""
+        try:
+            # Lấy khoảng cách và góc hướng từ tàu đến mục tiêu
+            distance_ship_to_target = float(self.ship_to_target_distance_input.text() or 0)
+            azimuth_ship_to_target = float(self.ship_to_target_azimuth_input.text() or 0)
+            
+            # Import các class cần thiết từ data_receiver
+            from communication.data_receiver import Ship, Point2D
+            import math
+            
+            # Tạo ship với kích thước chuẩn
+            ship = Ship()
+            
+            # Tính vị trí mục tiêu dựa trên vị trí quang điện tử
+            optoelectronic_pos = ship.get_optoelectronic()
+            azimuth_rad = math.radians(azimuth_ship_to_target)
+            
+            target_x = optoelectronic_pos.x + distance_ship_to_target * math.sin(azimuth_rad)
+            target_y = optoelectronic_pos.y + distance_ship_to_target * math.cos(azimuth_rad)
+            target_position = Point2D(target_x, target_y)
+            
+            # Tính khoảng cách từ mỗi pháo đến mục tiêu
+            cannons = ship.get_cannons()
+            cannon_left_pos = cannons[0][1]  # cannon_1
+            cannon_right_pos = cannons[1][1]  # cannon_2
+            
+            distance_left = cannon_left_pos.distance(target_position)
+            distance_right = cannon_right_pos.distance(target_position)
+            
+            # Cập nhật hiển thị khoảng cách
+            self.cannon_left_distance_label.setText(f"{distance_left:.2f}")
+            self.cannon_right_distance_label.setText(f"{distance_right:.2f}")
+            
+            # Cập nhật config (để tính toán lượng sửa)
+            config.DISTANCE_L = distance_left
+            config.DISTANCE_R = distance_right
+            
+            # Cập nhật góc hướng cho từng pháo
+            delta_x_left = target_x - cannon_left_pos.x
+            delta_y_left = target_y - cannon_left_pos.y
+            azimuth_left_rad = math.atan2(delta_x_left, delta_y_left)
+            azimuth_left_deg = math.degrees(azimuth_left_rad)
+            
+            delta_x_right = target_x - cannon_right_pos.x
+            delta_y_right = target_y - cannon_right_pos.y
+            azimuth_right_rad = math.atan2(delta_x_right, delta_y_right)
+            azimuth_right_deg = math.degrees(azimuth_right_rad)
+            
+            config.AIM_DIRECTION_L = azimuth_left_deg
+            config.AIM_DIRECTION_R = azimuth_right_deg
+            
+            # Nội suy góc tầm từ bảng bắn dựa trên khoảng cách
+            from common.utils import get_firing_table_interpolator
+            interpolator = get_firing_table_interpolator()
+            if interpolator:
+                # Tính góc tầm cho pháo trái
+                elevation_left = interpolator.interpolate_angle(distance_left)
+                config.AIM_ANGLE_L = elevation_left
+                
+                # Tính góc tầm cho pháo phải
+                elevation_right = interpolator.interpolate_angle(distance_right)
+                config.AIM_ANGLE_R = elevation_right
+            
+            # Cập nhật hiển thị bảng
+            self.update_angle_display()
+            
+        except (ValueError, AttributeError) as e:
+            print(f"Lỗi tính toán khoảng cách pháo: {e}")
+            self.cannon_left_distance_label.setText("0.00")
+            self.cannon_right_distance_label.setText("0.00")
+
     def calculate_corrections(self):
         """Tính toán lượng sửa dựa trên các thông số cho cả trái và phải.
         
@@ -878,6 +1063,13 @@ class BallisticCalculatorWidget(QWidget):
         Returns:
             tuple: (elev_left_corr, elev_right_corr, dir_left_corr, dir_right_corr)
         """
+        # Kiểm tra chế độ hiện tại
+        current_mode = self.mode_selector.get_mode()
+        
+        # Nếu đang ở chế độ thủ công, không tính toán lượng sửa (trả về 0)
+        if current_mode == "manual":
+            return 0, 0, 0, 0
+        
         from common.utils import get_firing_table_interpolator, get_slope_correction_table
         
         try:
@@ -1062,34 +1254,9 @@ class BallisticCalculatorWidget(QWidget):
             self.angle_cells['corrected_direction_left'].setText(f"{corrected_direction_left:.1f}°")
             self.angle_cells['corrected_direction_right'].setText(f"{corrected_direction_right:.1f}°")
 
-        elif current_mode == "semi-auto":
-            # Chế độ bán tự động - tính toán tự động CỘ NG THÊM lượng sửa thủ công
-            auto_elev_left, auto_elev_right, auto_dir_left, auto_dir_right = self.calculate_corrections()
-            
-            # Lấy giá trị manual để CỘNG THÊM vào auto
-            try:
-                manual_elev_left_mils = float(self.manual_elevation_left_input.text() or 0)
-                manual_elev_right_mils = float(self.manual_elevation_right_input.text() or 0)
-                manual_dir_left_mils = float(self.manual_direction_left_input.text() or 0)
-                manual_dir_right_mils = float(self.manual_direction_right_input.text() or 0)
-                
-                # Chuyển đổi từ ly giác sang độ: 1 ly giác = 0.05625 độ
-                manual_elev_left_deg = manual_elev_left_mils * 0.05625
-                manual_elev_right_deg = manual_elev_right_mils * 0.05625
-                manual_dir_left_deg = manual_dir_left_mils * 0.05625
-                manual_dir_right_deg = manual_dir_right_mils * 0.05625
-                
-                # CỘNG lượng sửa tự động + lượng sửa thủ công
-                elev_left_corr = auto_elev_left + manual_elev_left_deg
-                elev_right_corr = auto_elev_right + manual_elev_right_deg
-                dir_left_corr = auto_dir_left + manual_dir_left_deg
-                dir_right_corr = auto_dir_right + manual_dir_right_deg
-            except ValueError:
-                # Nếu input không hợp lệ, chỉ dùng giá trị tự động
-                elev_left_corr = auto_elev_left
-                elev_right_corr = auto_elev_right
-                dir_left_corr = auto_dir_left
-                dir_right_corr = auto_dir_right
+        elif current_mode == "semi-auto" or current_mode == "manual":
+            # Chế độ bán tự động hoặc thủ công - tính toán dựa trên vị trí mục tiêu nhập tay
+            elev_left_corr, elev_right_corr, dir_left_corr, dir_right_corr = self.calculate_corrections()
             
             # Hiển thị góc mặc định
             self.angle_cells['default_elevation_left'].setText(f"{aim_elevation_left:.1f}°")
@@ -1097,7 +1264,7 @@ class BallisticCalculatorWidget(QWidget):
             self.angle_cells['default_direction_left'].setText(f"{aim_direction_left:.1f}°")
             self.angle_cells['default_direction_right'].setText(f"{aim_direction_right:.1f}°")
 
-            # Hiển thị góc sau khi áp dụng lượng sửa (tự động + thủ công)
+            # Hiển thị góc sau khi áp dụng lượng sửa
             corrected_elevation_left = aim_elevation_left + elev_left_corr
             corrected_elevation_right = aim_elevation_right + elev_right_corr
             corrected_direction_left = aim_direction_left + dir_left_corr
@@ -1106,99 +1273,13 @@ class BallisticCalculatorWidget(QWidget):
             self.angle_cells['corrected_elevation_left'].setText(f"{corrected_elevation_left:.1f}°")
             self.angle_cells['corrected_elevation_right'].setText(f"{corrected_elevation_right:.1f}°")
             self.angle_cells['corrected_direction_left'].setText(f"{corrected_direction_left:.1f}°")
-            self.angle_cells['corrected_direction_right'].setText(f"{corrected_direction_right:.1f}°")
-
-        else:  # manual mode
-            # Chế độ thủ công - lấy lượng sửa từ input (đơn vị: ly giác)
-            try:
-                elev_left_corr_mils = float(self.manual_elevation_left_input.text() or 0)
-                elev_right_corr_mils = float(self.manual_elevation_right_input.text() or 0)
-                dir_left_corr_mils = float(self.manual_direction_left_input.text() or 0)
-                dir_right_corr_mils = float(self.manual_direction_right_input.text() or 0)
-                
-                # Chuyển đổi từ ly giác sang độ: 1 ly giác = 0.05625 độ
-                elev_left_corr = elev_left_corr_mils * 0.05625
-                elev_right_corr = elev_right_corr_mils * 0.05625
-                dir_left_corr = dir_left_corr_mils * 0.05625
-                dir_right_corr = dir_right_corr_mils * 0.05625
-            except ValueError:
-                elev_left_corr = 0
-                elev_right_corr = 0
-                dir_left_corr = 0
-                dir_right_corr = 0
-
-            # Hiển thị góc mặc định (góc mục tiêu từ nội suy)
-            self.angle_cells['default_elevation_left'].setText(f"{aim_elevation_left:.1f}°")
-            self.angle_cells['default_direction_left'].setText(f"{aim_direction_left:.1f}°")
-            self.angle_cells['default_elevation_right'].setText(f"{aim_elevation_right:.1f}°")
-            self.angle_cells['default_direction_right'].setText(f"{aim_direction_right:.1f}°")
-
-            # Hiển thị góc sau khi áp dụng lượng sửa (góc mục tiêu + lượng sửa đã chuyển sang độ)
-            corrected_elevation_left = aim_elevation_left + elev_left_corr
-            corrected_elevation_right = aim_elevation_right + elev_right_corr
-            corrected_direction_left = aim_direction_left + dir_left_corr
-            corrected_direction_right = aim_direction_right + dir_right_corr
-
-            self.angle_cells['corrected_elevation_left'].setText(f"{corrected_elevation_left:.1f}°")
-            self.angle_cells['corrected_direction_left'].setText(f"{corrected_direction_left:.1f}°")
-            self.angle_cells['corrected_elevation_right'].setText(f"{corrected_elevation_right:.1f}°")
             self.angle_cells['corrected_direction_right'].setText(f"{corrected_direction_right:.1f}°")
 
     def get_corrections(self):
         """Lấy lượng sửa (không bao gồm góc gốc) - đã chuyển đổi sang độ."""
-        current_mode = self.mode_selector.get_mode()
+        # Tất cả các chế độ đều dùng calculate_corrections()
+        elev_left_corr, elev_right_corr, dir_left_corr, dir_right_corr = self.calculate_corrections()
         
-        if current_mode == "auto":
-            # Chế độ tự động - calculate_corrections() đã trả về giá trị bằng độ
-            elev_left_corr, elev_right_corr, dir_left_corr, dir_right_corr = self.calculate_corrections()
-        
-        elif current_mode == "semi-auto":
-            # Chế độ bán tự động - tính toán tự động CỘNG THÊM lượng sửa thủ công
-            auto_elev_left, auto_elev_right, auto_dir_left, auto_dir_right = self.calculate_corrections()
-            
-            try:
-                manual_elev_left_mils = float(self.manual_elevation_left_input.text() or 0)
-                manual_elev_right_mils = float(self.manual_elevation_right_input.text() or 0)
-                manual_dir_left_mils = float(self.manual_direction_left_input.text() or 0)
-                manual_dir_right_mils = float(self.manual_direction_right_input.text() or 0)
-                
-                # Chuyển đổi từ ly giác sang độ
-                manual_elev_left_deg = manual_elev_left_mils * 0.05625
-                manual_elev_right_deg = manual_elev_right_mils * 0.05625
-                manual_dir_left_deg = manual_dir_left_mils * 0.05625
-                manual_dir_right_deg = manual_dir_right_mils * 0.05625
-                
-                # CỘNG lượng sửa tự động + lượng sửa thủ công
-                elev_left_corr = auto_elev_left + manual_elev_left_deg
-                elev_right_corr = auto_elev_right + manual_elev_right_deg
-                dir_left_corr = auto_dir_left + manual_dir_left_deg
-                dir_right_corr = auto_dir_right + manual_dir_right_deg
-            except ValueError:
-                # Fallback về auto nếu input không hợp lệ
-                elev_left_corr = auto_elev_left
-                elev_right_corr = auto_elev_right
-                dir_left_corr = auto_dir_left
-                dir_right_corr = auto_dir_right
-        
-        else:  # manual mode
-            # Chế độ thủ công - cần chuyển từ ly giác sang độ
-            try:
-                elev_left_corr_mils = float(self.manual_elevation_left_input.text() or 0)
-                elev_right_corr_mils = float(self.manual_elevation_right_input.text() or 0)
-                dir_left_corr_mils = float(self.manual_direction_left_input.text() or 0)
-                dir_right_corr_mils = float(self.manual_direction_right_input.text() or 0)
-                
-                # Chuyển đổi từ ly giác sang độ: 1 ly giác = 0.05625 độ
-                elev_left_corr = elev_left_corr_mils * 0.05625
-                elev_right_corr = elev_right_corr_mils * 0.05625
-                dir_left_corr = dir_left_corr_mils * 0.05625
-                dir_right_corr = dir_right_corr_mils * 0.05625
-            except ValueError:
-                elev_left_corr = 0
-                elev_right_corr = 0
-                dir_left_corr = 0
-                dir_right_corr = 0
-
         return {
             'elevation_correction_left': elev_left_corr,
             'elevation_correction_right': elev_right_corr,

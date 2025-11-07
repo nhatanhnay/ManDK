@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator, QPainter, QColor
 import ui.ui_config as config
+from common.utils import get_firing_table_interpolator
 
 
 class AngleInputDialog(QWidget):
@@ -43,48 +44,152 @@ class AngleInputDialog(QWidget):
         dialog_container = QWidget()
         dialog_container.setMinimumWidth(600)
         dialog_container.setMaximumWidth(700)
-        dialog_container.setMaximumHeight(500)
+        dialog_container.setMaximumHeight(750)  # Tăng chiều cao để chứa đủ các phần tử
         
         layout = QVBoxLayout()
-        layout.setSpacing(15)
+        layout.setSpacing(20)  # Tăng spacing giữa các group box
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Group box cho khoảng cách
         distance_group = QGroupBox("Khoảng cách (m)")
         distance_layout = QVBoxLayout()
-        distance_layout.setSpacing(8)
+        distance_layout.setSpacing(15)  # Tăng spacing giữa các phần tử
         
         self.distance_input = QLineEdit()
-        self.distance_input.setPlaceholderText("Nhập khoảng cách (0-20000)")
+        self.distance_input.setPlaceholderText("Nhập khoảng cách (0-10000)")
         self.distance_input.setText(str(self.distance_value))
-        self.distance_input.setMinimumHeight(50)  # Tăng chiều cao ô nhập
-        
-        # Validator cho khoảng cách (0-20000 mét)
-        distance_validator = QDoubleValidator(0.0, 20000.0, 1)
+        self.distance_input.setMinimumHeight(50)  # Chiều cao ô nhập
+        self.distance_input.setMaximumHeight(50)  # Giới hạn chiều cao tối đa
+
+        # Validator cho khoảng cách (0-10000 mét)
+        distance_validator = QDoubleValidator(0.0, 10000.0, 1)
         distance_validator.setNotation(QDoubleValidator.StandardNotation)
         self.distance_input.setValidator(distance_validator)
         
         distance_layout.addWidget(self.distance_input)
+        distance_layout.addSpacing(12)  # Thêm khoảng cách giữa input và buttons
         
         # Nút chuyển đổi chế độ Auto/Manual
         mode_button_layout = QHBoxLayout()
         mode_button_layout.setSpacing(15)
         
         self.mode_label = QLabel()
-        self.mode_label.setMinimumHeight(40)  # Tăng chiều cao label
-        self.mode_label.setMinimumWidth(180)  # Tăng chiều rộng label
+        self.mode_label.setMinimumHeight(45)  # Chiều cao label
+        self.mode_label.setMaximumHeight(45)  # Giới hạn chiều cao
+        self.mode_label.setMinimumWidth(180)  # Chiều rộng label
         self.update_mode_label()
         mode_button_layout.addWidget(self.mode_label)
         
         self.toggle_mode_button = QPushButton()
         self.update_mode_button()
         self.toggle_mode_button.clicked.connect(self.toggle_distance_mode)
-        self.toggle_mode_button.setMinimumWidth(180)  # Tăng chiều rộng tối thiểu
-        self.toggle_mode_button.setMinimumHeight(40)  # Tăng chiều cao
+        self.toggle_mode_button.setMinimumWidth(180)  # Chiều rộng tối thiểu
+        self.toggle_mode_button.setMinimumHeight(45)  # Chiều cao
+        self.toggle_mode_button.setMaximumHeight(45)  # Giới hạn chiều cao
         mode_button_layout.addWidget(self.toggle_mode_button)
         
         distance_layout.addLayout(mode_button_layout)
         distance_group.setLayout(distance_layout)
+        
+        # Group box cho góc tầm preview với 2 ô
+        elevation_preview_group = QGroupBox("Góc tầm tính toán")
+        elevation_preview_layout = QHBoxLayout()
+        elevation_preview_layout.setSpacing(15)
+        
+        # Ô bên trái - Ly giác (độ thập phân)
+        decimal_container = QVBoxLayout()
+        decimal_container.setSpacing(0)  # Không có khoảng cách giữa label và số
+        
+        decimal_label = QLabel("Ly giác")
+        decimal_label.setAlignment(Qt.AlignCenter)
+        decimal_label.setStyleSheet("""
+            QLabel {
+                color: #ffffff;
+                font-size: 13px;
+                font-weight: bold;
+                background-color: #444444;
+                border: 2px solid #00aa00;
+                border-bottom: none;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                border-bottom-left-radius: 0px;
+                border-bottom-right-radius: 0px;
+                padding: 5px;
+            }
+        """)
+        
+        self.elevation_decimal_label = QLabel("--")
+        self.elevation_decimal_label.setAlignment(Qt.AlignCenter)
+        self.elevation_decimal_label.setMinimumHeight(60)
+        self.elevation_decimal_label.setStyleSheet("""
+            QLabel {
+                background-color: #2a2a2a;
+                color: #00ff00;
+                border: 2px solid #00aa00;
+                border-top: none;
+                border-top-left-radius: 0px;
+                border-top-right-radius: 0px;
+                border-bottom-left-radius: 8px;
+                border-bottom-right-radius: 8px;
+                padding: 10px;
+                font-size: 20px;
+                font-weight: bold;
+            }
+        """)
+        
+        decimal_container.addWidget(decimal_label)
+        decimal_container.addWidget(self.elevation_decimal_label)
+        
+        # Ô bên phải - Độ phút
+        dms_container = QVBoxLayout()
+        dms_container.setSpacing(0)  # Không có khoảng cách giữa label và số
+        
+        dms_label = QLabel("Độ phút (° ')")
+        dms_label.setAlignment(Qt.AlignCenter)
+        dms_label.setStyleSheet("""
+            QLabel {
+                color: #ffffff;
+                font-size: 13px;
+                font-weight: bold;
+                background-color: #444444;
+                border: 2px solid #00aa00;
+                border-bottom: none;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                border-bottom-left-radius: 0px;
+                border-bottom-right-radius: 0px;
+                padding: 5px;
+            }
+        """)
+        
+        self.elevation_dms_label = QLabel("--")
+        self.elevation_dms_label.setAlignment(Qt.AlignCenter)
+        self.elevation_dms_label.setMinimumHeight(60)
+        self.elevation_dms_label.setStyleSheet("""
+            QLabel {
+                background-color: #2a2a2a;
+                color: #00ff00;
+                border: 2px solid #00aa00;
+                border-top: none;
+                border-top-left-radius: 0px;
+                border-top-right-radius: 0px;
+                border-bottom-left-radius: 8px;
+                border-bottom-right-radius: 8px;
+                padding: 10px;
+                font-size: 20px;
+                font-weight: bold;
+            }
+        """)
+        
+        dms_container.addWidget(dms_label)
+        dms_container.addWidget(self.elevation_dms_label)
+        
+        elevation_preview_layout.addLayout(decimal_container)
+        elevation_preview_layout.addLayout(dms_container)
+        elevation_preview_group.setLayout(elevation_preview_layout)
+        
+        # Kết nối signal để cập nhật góc tầm khi thay đổi khoảng cách
+        self.distance_input.textChanged.connect(self.update_elevation_preview)
         
         # Group box cho góc hướng
         direction_group = QGroupBox("Góc hướng (độ)")
@@ -94,6 +199,8 @@ class AngleInputDialog(QWidget):
         self.direction_input = QLineEdit()
         self.direction_input.setPlaceholderText("Nhập góc hướng (-180 đến 180)")
         self.direction_input.setText(str(self.direction_value))
+        self.direction_input.setMinimumHeight(50)  # Chiều cao ô nhập
+        self.direction_input.setMaximumHeight(50)  # Giới hạn chiều cao
         
         # Validator cho góc hướng (-180 đến 180 độ)
         direction_validator = QDoubleValidator(-180.0, 180.0, 1)
@@ -129,6 +236,7 @@ class AngleInputDialog(QWidget):
         # Add all to dialog container layout
         layout.addWidget(title_label)
         layout.addWidget(distance_group)
+        layout.addWidget(elevation_preview_group)
         layout.addWidget(direction_group)
         layout.addSpacing(10)
         layout.addLayout(button_layout)
@@ -239,6 +347,54 @@ class AngleInputDialog(QWidget):
             }
         """)
         
+        # Cập nhật góc tầm preview ban đầu
+        self.update_elevation_preview()
+        
+    def decimal_to_degrees_minutes(self, decimal_degrees):
+        """Chuyển đổi từ độ thập phân sang độ phút.
+        
+        Args:
+            decimal_degrees: Góc theo độ thập phân (ví dụ: 15.5)
+            
+        Returns:
+            tuple: (độ, phút) - ví dụ: (15, 30)
+        """
+        degrees = int(decimal_degrees)
+        minutes = (decimal_degrees - degrees) * 60
+        return degrees, minutes
+    
+    def update_elevation_preview(self):
+        """Cập nhật góc tầm preview khi khoảng cách thay đổi."""
+        try:
+            distance_text = self.distance_input.text()
+            if not distance_text:
+                self.elevation_decimal_label.setText("--")
+                self.elevation_dms_label.setText("--")
+                return
+            
+            distance = float(distance_text)
+            
+            # Lấy interpolator từ bảng bắn
+            interpolator = get_firing_table_interpolator()
+            if interpolator:
+                # Lấy ly giác (chưa chuyển sang độ)
+                elevation_mils = interpolator.interpolate_angle_mils(distance)
+                # Lấy góc độ (đã chuyển sang độ)
+                elevation_angle = interpolator.interpolate_angle(distance)
+                
+                # Chuyển đổi sang độ phút
+                degrees, minutes = self.decimal_to_degrees_minutes(elevation_angle)
+                
+                # Hiển thị ly giác và độ phút
+                self.elevation_decimal_label.setText(f"{elevation_mils:.0f}")
+                self.elevation_dms_label.setText(f"{degrees}° {minutes:.1f}'")
+            else:
+                self.elevation_decimal_label.setText("N/A")
+                self.elevation_dms_label.setText("N/A")
+        except ValueError:
+            self.elevation_decimal_label.setText("--")
+            self.elevation_dms_label.setText("--")
+    
     def toggle_distance_mode(self):
         """Chuyển đổi giữa chế độ tự động và thủ công."""
         if self.is_left_side:
@@ -314,7 +470,7 @@ class AngleInputDialog(QWidget):
             direction = float(self.direction_input.text()) if self.direction_input.text() else self.direction_value
             
             # Clamp values trong range hợp lệ
-            distance = max(0.0, min(20000.0, distance))
+            distance = max(0.0, min(10000.0, distance))
             direction = max(-180.0, min(180.0, direction))
             
             return distance, direction

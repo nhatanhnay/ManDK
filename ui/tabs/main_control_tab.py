@@ -824,9 +824,8 @@ class MainTab(GridBackgroundWidget):
             # AIM_ANGLE = góc mục tiêu (từ nội suy bảng bắn)
             config.AIM_ANGLE_L = interpolator.interpolate_angle(config.DISTANCE_L)
             config.AIM_ANGLE_R = interpolator.interpolate_angle(config.DISTANCE_R)
-            # AIM_DIRECTION = hướng mục tiêu (từ tính toán targeting)
-            config.AIM_DIRECTION_L = config.DIRECTION_L
-            config.AIM_DIRECTION_R = config.DIRECTION_R
+            # AIM_DIRECTION_L/R = hướng mục tiêu (được set từ targeting hoặc ballistic calculator)
+            # KHÔNG tự động cập nhật ở đây - chỉ được set khi có tính toán mục tiêu
             # ANGLE_L/R và DIRECTION_L/R = góc/hướng HIỆN TẠI từ cảm biến (CAN bus)
             # Sẽ được cập nhật từ data_receiver khi nhận CAN bus 0x200, 0x201
         

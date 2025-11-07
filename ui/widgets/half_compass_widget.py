@@ -511,25 +511,36 @@ class HalfCircleWidget(QWidget):
                     angle_diff = abs(angle - self._aim_angle)
                 is_close_to_aim = angle_diff <= 1.0
                 
+                # Kiểm tra xem vạch có nằm trong khoảng 10-60 độ không (chỉ cho wheel góc tầm)
+                is_in_bright_range = True  # Mặc định là sáng
+                if not is_360:  # Chỉ áp dụng cho wheel góc tầm (bên trái)
+                    is_in_bright_range = (10 <= angle <= 60)
+                
                 # Độ dài vạch tùy vào góc - logic giống wheel góc tầm
                 if angle % 15 == 0:  # Vạch dài cho góc chia hết cho 15 (cả hai wheel)
                     mark_width = width * 0.3
                     if is_close_to_aim:
                         painter.setPen(QPen(QColor(255, 255, 255, 255), 2))  # Trắng không trong suốt
-                    else:
+                    elif is_in_bright_range:
                         painter.setPen(QPen(Qt.white, 2))
+                    else:
+                        painter.setPen(QPen(QColor(100, 100, 100), 2))  # Xám cho vạch ngoài khoảng 10-60
                 elif angle % (10 if is_360 else 10) == 0:  # Vạch trung bình
                     mark_width = width * 0.2
                     if is_close_to_aim:
                         painter.setPen(QPen(QColor(255, 255, 255, 255), 1.5))  # Trắng không trong suốt
-                    else:
+                    elif is_in_bright_range:
                         painter.setPen(QPen(Qt.white, 1.5))
+                    else:
+                        painter.setPen(QPen(QColor(100, 100, 100), 1.5))  # Xám
                 else:  # Vạch ngắn
                     mark_width = width * 0.1
                     if is_close_to_aim:
                         painter.setPen(QPen(QColor(255, 255, 255, 255), 1))  # Trắng không trong suốt
-                    else:
+                    elif is_in_bright_range:
                         painter.setPen(QPen(Qt.white, 1))
+                    else:
+                        painter.setPen(QPen(QColor(100, 100, 100), 1))  # Xám
                 
                 # Vẽ vạch
                 start_x = center.x() - mark_width/2
@@ -543,8 +554,10 @@ class HalfCircleWidget(QWidget):
                     painter.setFont(font)
                     if is_close_to_aim:
                         painter.setPen(QPen(QColor(255, 255, 255, 255), 2))  # Text trắng không trong suốt
-                    else:
+                    elif is_in_bright_range:
                         painter.setPen(QPen(Qt.white, 2))
+                    else:
+                        painter.setPen(QPen(QColor(120, 120, 120), 2))  # Text xám
                     text_rect = QRectF(center.x() + width/2 - 25, y_pos - 8, 20, 16)
                     painter.drawText(text_rect, Qt.AlignCenter, str(angle))
 

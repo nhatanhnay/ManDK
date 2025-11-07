@@ -78,7 +78,7 @@ Widgets:
     height: 370
     redlines:
       - 150
-      - 390
+      - 385
     style: "background-color: rgb(255, 255, 255);"
     width: 370
     x: 20
@@ -86,7 +86,7 @@ Widgets:
   CompassRight:
     height: 370
     redlines:
-      - 150
+      - 155
       - 390
     style: "background-color: rgb(255, 255, 255);"
     width: 370

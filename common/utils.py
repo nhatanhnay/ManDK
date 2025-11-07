@@ -257,6 +257,14 @@ class FiringTableInterpolator:
         angle_degrees = angle_mils * 0.06
         return angle_degrees
     
+    def interpolate_angle_mils(self, target_range: float) -> float:
+        """Nội suy góc tầm cho một khoảng cách mục tiêu.
+        
+        Returns:
+            Góc tầm tính bằng ly giác (mils)
+        """
+        return self._interpolate_value(target_range, self.angles)
+    
     def interpolate_z(self, target_range: float) -> float:
         """Nội suy giá trị Z cho một khoảng cách."""
         return self._interpolate_value(target_range, self.z_data)
