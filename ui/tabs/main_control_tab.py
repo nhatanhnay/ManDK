@@ -144,7 +144,8 @@ class MainTab(GridBackgroundWidget):
     def setupUi(self):
         # Tạo các compass từ config
         compass_left_config = self.config['Widgets']['CompassLeft']
-        self.compass_left = AngleCompass(35, 35, compass_left_config.get('redlines', [210, 330]), 0, self)
+        # redlines sử dụng góc compass (0° = Bắc/trên, tăng theo chiều kim đồng hồ)
+        self.compass_left = AngleCompass(35, 35, compass_left_config.get('redlines', [210, 360]), 0, self)
         
         self.compass_left.setGeometry(QtCore.QRect(
             compass_left_config['x'], compass_left_config['y'] + 34,
@@ -154,7 +155,20 @@ class MainTab(GridBackgroundWidget):
         self.compass_left.setStyleSheet(compass_left_config['style'])
 
         half_left_config = self.config['Widgets']['HalfCompassLeft']
-        self.half_compass_left = HalfCircleWidget(15, 20, self)
+        # Tính toán redline limits từ CompassLeft redlines
+        # redlines sử dụng góc compass (0° = Bắc/trên, tăng theo chiều kim đồng hồ)
+        # Công thức: redline[0] - 90 = min_limit, 450 - redline[1] = max_limit
+        compass_left_redlines = compass_left_config.get('redlines', [150, 385])
+        left_min_limit = -(compass_left_redlines[0] - 90)  # 150 - 90 = 60, nên -60
+        left_max_limit = 450 - compass_left_redlines[1]     # 450 - 385 = 65
+        left_redline_limits = [left_min_limit, left_max_limit]
+        
+        # Giới hạn cho góc tầm: làm xám các vạch ngoài khoảng [10, 60]
+        elevation_limits = [10, 60]
+        
+        self.half_compass_left = HalfCircleWidget(15, 20, self, 
+                                                   redline_limits=left_redline_limits,
+                                                   elevation_limits=elevation_limits)
         
         # Điều chỉnh vị trí để căn chỉnh chính xác với compass và cùng y với HalfCompassLeft
         self.half_compass_left.setGeometry(QtCore.QRect(
@@ -203,7 +217,8 @@ class MainTab(GridBackgroundWidget):
         self.angle_input_button_left.clicked.connect(lambda: self.on_angle_input_clicked('left'))
 
         compass_right_config = self.config['Widgets']['CompassRight']
-        self.compass_right = AngleCompass(45, 40, compass_right_config.get('redlines', [210, 330]), 0, self)
+        # redlines sử dụng góc compass (0° = Bắc/trên, tăng theo chiều kim đồng hồ)
+        self.compass_right = AngleCompass(45, 40, compass_right_config.get('redlines', [180, 330]), 0, self)
         
         self.compass_right.setGeometry(QtCore.QRect(
             compass_right_config['x'], compass_right_config['y'] + 34,
@@ -213,7 +228,20 @@ class MainTab(GridBackgroundWidget):
         self.compass_right.setStyleSheet(compass_right_config['style'])
 
         half_right_config = self.config['Widgets']['HalfCompassRight']
-        self.half_compass_right = HalfCircleWidget(30, 25, self)
+        # Tính toán redline limits từ CompassRight redlines
+        # redlines sử dụng góc compass (0° = Bắc/trên, tăng theo chiều kim đồng hồ)
+        # Công thức: redline[0] - 90 = min_limit, 450 - redline[1] = max_limit
+        compass_right_redlines = compass_right_config.get('redlines', [155, 390])
+        right_min_limit = -(compass_right_redlines[0] - 90)  # 155 - 90 = 65, nên -65
+        right_max_limit = 450 - compass_right_redlines[1]    # 450 - 390 = 60
+        right_redline_limits = [right_min_limit, right_max_limit]
+        
+        # Giới hạn cho góc tầm: làm xám các vạch ngoài khoảng [10, 60]
+        elevation_limits = [10, 60]
+        
+        self.half_compass_right = HalfCircleWidget(30, 25, self, 
+                                                    redline_limits=right_redline_limits,
+                                                    elevation_limits=elevation_limits)
         
         # Điều chỉnh vị trí để có cùng y với HalfCompassLeft, dịch lên trên 10px
         self.half_compass_right.setGeometry(QtCore.QRect(
@@ -390,10 +418,9 @@ class MainTab(GridBackgroundWidget):
         left_selected = self.bullet_widget.left_selected_launchers
         right_selected = self.bullet_widget.right_selected_launchers
         if not (left_selected or right_selected):
-            CustomMessageBox.warning(
-                "Cảnh báo",
-                "Chưa chọn ống phóng nào!"
-            )
+            # Chỉ log, không hiện popup
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log("Chưa chọn ống phóng nào!", "WARNING")
             return
 
         # Hiển thị message box xác nhận
@@ -457,28 +484,19 @@ class MainTab(GridBackgroundWidget):
             if can_success:
                 success_msg = f"Đã phóng thành công {selected_count} ống (Trái: {len(left_selected)}, Phải: {len(right_selected)})"
                 LogTab.log(success_msg, "SUCCESS")
-                CustomMessageBox.information(
-                    "Thông báo",
-                    f"Đã phóng thành công {selected_count} ống!"
-                )
+                # Bỏ popup, chỉ log
             else:
                 failed_data_str = " | ".join(failed_can_data)
                 warning_msg = f"Đã cập nhật trạng thái {selected_count} ống nhưng không thể gửi lệnh qua CAN bus - CAN Data: {failed_data_str} - ID: 0x29"
                 LogTab.log(warning_msg, "WARNING")
-                CustomMessageBox.warning(
-                    "Cảnh báo",
-                    f"Đã cập nhật trạng thái {selected_count} ống!\n"
-                    f"Tuy nhiên không thể gửi lệnh qua CAN bus.\n"
-                    f"Vui lòng kiểm tra kết nối thiết bị CAN."
-                )
+                # Bỏ popup, chỉ log
             
             # Cập nhật trạng thái nút sau khi phóng
             self._update_action_buttons_state()
         else:
-            CustomMessageBox.information(
-                "Thông báo",
-                "Đã hủy phóng!"
-            )
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log("Đã hủy phóng!", "INFO")
+            # Bỏ popup, chỉ log
             self.on_cancel_button_clicked()
 
     def on_cancel_button_clicked(self):
@@ -652,29 +670,16 @@ class MainTab(GridBackgroundWidget):
             if sender_angle_direction(elevation_int, direction_int, idx):
                 from ui.tabs.event_log_tab import LogTab
                 LogTab.log(f"Đã gửi lệnh khoảng cách {distance:.1f}m (góc tầm {elevation:.1f}°) và góc hướng {direction:.1f}° cho giàn {side_text} - CAN Data: [{can_data_hex}]", "SUCCESS")
-                CustomMessageBox.information(
-                    "Đã gửi lệnh",
-                    f"Đã gửi lệnh điều khiển cho giàn {side_text}:\n"
-                    f"Khoảng cách: {distance:.1f} m\n"
-                    f"Góc tầm (tính toán): {elevation:.1f}°\n"
-                    f"Góc hướng: {direction:.1f}°\n\n"
-                    f"Hệ thống đang điều chỉnh..."
-                )
+                # Bỏ popup, chỉ log
             else:
                 from ui.tabs.event_log_tab import LogTab
                 LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn {side_text} - CAN Data: [{can_data_hex}] - ID: 0x29", "ERROR")
                 LogTab.log(f"Chi tiết CAN Data: {can_data_explained}", "ERROR")
-                CustomMessageBox.warning(
-                    "Lỗi",
-                    f"Không thể gửi lệnh qua CAN bus!\nVui lòng kiểm tra kết nối."
-                )
+                # Bỏ popup, chỉ log
         else:
             from ui.tabs.event_log_tab import LogTab
             LogTab.log(f"Không thể tính toán góc tầm - bảng bắn chưa được tải", "ERROR")
-            CustomMessageBox.warning(
-                "Lỗi",
-                f"Không thể tính toán góc tầm!\nBảng bắn chưa được tải."
-            )
+            # Bỏ popup, chỉ log
 
     def update_half_compass_angles(self, corrections):
         """Lưu lượng sửa từ ballistic calculator - sẽ được áp dụng trong update_data()."""

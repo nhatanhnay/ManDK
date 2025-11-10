@@ -77,6 +77,8 @@ Widgets:
   CompassLeft:
     height: 370
     redlines:
+      # Góc compass (0° = Bắc/trên, góc tăng theo chiều kim đồng hồ)
+      # 210° (Tây Nam) đến 360° (Bắc) - sector cấm bắn mặc định
       - 210
       - 360
     style: "background-color: rgb(255, 255, 255);"
@@ -86,6 +88,8 @@ Widgets:
   CompassRight:
     height: 370
     redlines:
+      # Góc compass (0° = Bắc/trên, góc tăng theo chiều kim đồng hồ)
+      # 180° (Nam) đến 330° (Tây Bắc) - sector cấm bắn mặc định
       - 180
       - 330
     style: "background-color: rgb(255, 255, 255);"

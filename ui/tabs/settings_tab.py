@@ -658,16 +658,11 @@ class SettingTab(GridBackgroundWidget):
             QTimer.singleShot(500, lambda: self._restore_apply_save_button())
             
         except Exception as e:
-            # Khôi phục nút và hiển thị lỗi
+            # Khôi phục nút và log lỗi
             self._restore_apply_save_button()
-            msg = QMessageBox(self)
-            msg.setWindowTitle("Lỗi")
-            msg.setText(f"Không thể áp dụng và lưu config: {str(e)}")
-            msg.setIcon(QMessageBox.Warning)
-            # Đặt ở giữa màn hình
-            from .components.custom_message_box import CustomMessageBox
-            CustomMessageBox.center_message_box(msg)
-            msg.exec_()
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Không thể áp dụng và lưu config: {str(e)}", "ERROR")
+            # Bỏ popup, chỉ log
 
     def _restore_apply_save_button(self):
         """Khôi phục trạng thái ban đầu của nút áp dụng và lưu."""
@@ -720,16 +715,11 @@ class SettingTab(GridBackgroundWidget):
             QTimer.singleShot(500, lambda: self._restore_reset_button())
             
         except Exception as e:
-            # Khôi phục nút và hiển thị lỗi
+            # Khôi phục nút và log lỗi
             self._restore_reset_button()
-            msg = QMessageBox(self)
-            msg.setWindowTitle("Lỗi")
-            msg.setText(f"Không thể load default config: {str(e)}")
-            msg.setIcon(QMessageBox.Warning)
-            # Đặt ở giữa màn hình
-            from .components.custom_message_box import CustomMessageBox
-            CustomMessageBox.center_message_box(msg)
-            msg.exec_()
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Không thể load default config: {str(e)}", "ERROR")
+            # Bỏ popup, chỉ log
 
     def _restore_reset_button(self):
         """Khôi phục trạng thái ban đầu của nút reset."""

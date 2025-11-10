@@ -23,14 +23,14 @@ class AngleCompass(QWidget):
         Args:
             aim_direction (float): Góc cột ngắm.
             current_direction (float): Góc giàn bắn.
-            redlines (list): Danh sách góc để vẽ đường đỏ.
+            redlines (list): Danh sách góc compass để vẽ vùng cấm (0° = Bắc/trên, tăng theo chiều kim đồng hồ).
             w_direction (float): Hướng của tàu so với địa lý (độ, 0 = Bắc).
             parent (QWidget, optional): _description_. Defaults to None.
         """
         super().__init__(parent)
         self._aim_direction = aim_direction  # Default aim_direction
         self._current_direction = current_direction  # Default current_direction
-        self.redlines = redlines or [210, 330]  # Mặc định nếu không truyền vào
+        self.redlines = redlines or [210, 360]  # Mặc định nếu không truyền vào (góc compass)
         self._w_direction = w_direction  # Hướng địa lý
         self.static_pixmap = None
         self._aim_anim = QPropertyAnimation(self, b"aimDirection")

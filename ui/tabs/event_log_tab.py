@@ -127,12 +127,18 @@ class GridBackgroundWidget(QtWidgets.QWidget):
 
 class LogTab(GridBackgroundWidget):
     _instance = None  # Singleton instance
+    _fire_control_instance = None  # Reference đến FireControl để hiển thị error indicator
     
     def __init__(self, config_data, parent=None):
         super().__init__(parent, enable_animation=config_data['MainWindow'].get('background_animation', True))
         self.config = config_data
         LogTab._instance = self  # Lưu instance để có thể truy cập toàn cục
         self.setupUi()
+    
+    @staticmethod
+    def set_fire_control_instance(fire_control):
+        """Lưu reference đến FireControl instance."""
+        LogTab._fire_control_instance = fire_control
 
     def setupUi(self):
         # Create main layout for log display
@@ -209,6 +215,12 @@ class LogTab(GridBackgroundWidget):
         if level == "ERROR":
             color = "#EF4444"  # Đỏ
             icon = "❌"
+            # Hiển thị chấm đỏ trên tab lịch sử khi có ERROR
+            if LogTab._fire_control_instance:
+                try:
+                    LogTab._fire_control_instance.show_error_indicator()
+                except Exception as e:
+                    print(f"Không thể hiển thị error indicator: {e}")
         elif level == "WARNING":
             color = "#F59E0B"  # Vàng
             icon = "⚠️"

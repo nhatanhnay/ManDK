@@ -173,6 +173,17 @@ class FireControl(QtCore.QObject):
             "QPushButton{ background: #121212; color: #E6EEF3; border: none; padding-left:12px; border-top-left-radius:8px; border-top-right-radius:8px; font-weight:600; }"
             "QPushButton:hover{ color: #E6EEF3; }"
         )
+        
+        # Thêm chấm đỏ báo lỗi cho tab lịch sử (ban đầu ẩn)
+        self.error_indicator = QtWidgets.QLabel(self.tab_log)
+        self.error_indicator.setFixedSize(10, 10)
+        self.error_indicator.setStyleSheet(
+            "background-color: #EF4444; border-radius: 5px;"
+        )
+        # Đặt vị trí chấm đỏ ở cuối tab (đuôi tab), cách lề phải 12px, căn giữa theo chiều cao
+        # tab_width = 220, cách lề phải 12px, chấm đỏ 10px => 220 - 12 - 10 = 198
+        self.error_indicator.move(198, 9)  # y=9 để căn giữa theo chiều cao (28px tab height)
+        self.error_indicator.hide()  # Ẩn ban đầu
 
         self.tab_settings = QtWidgets.QPushButton("Cài đặt", self.tab_bar)
         self.tab_settings.setCursor(Qt.PointingHandCursor)
@@ -206,6 +217,9 @@ class FireControl(QtCore.QObject):
         self.log_page.setGeometry(0, tab_height, mw_width, total_h - tab_height)
         self.log_page.setStyleSheet('background: #121212; border-top: none;')
         self.log_page.hide()
+        
+        # Lưu reference đến FireControl trong LogTab để có thể hiển thị error indicator
+        LogTab.set_fire_control_instance(self)
 
         # Create an empty settings page below the tab bar. Initially hidden.
         self.settings_page = SettingTab(self.config, MainWindow)
@@ -286,6 +300,8 @@ class FireControl(QtCore.QObject):
             self.log_page.show()
             self.log_page.raise_()
             self.settings_page.hide()
+            # Ẩn chấm đỏ khi người dùng vào tab lịch sử
+            self.error_indicator.hide()
         except Exception:
             pass
         self._update_tab_styles(self.tab_log)
@@ -303,6 +319,14 @@ class FireControl(QtCore.QObject):
             pass
         self._update_tab_styles(self.tab_settings)
         QtCore.QTimer.singleShot(0, self._update_tab_lines)
+
+    def show_error_indicator(self):
+        """Hiển thị chấm đỏ báo lỗi trên tab lịch sử."""
+        try:
+            self.error_indicator.show()
+            self.error_indicator.raise_()  # Đảm bảo chấm đỏ hiển thị trên cùng
+        except Exception as e:
+            print(f"Không thể hiển thị error indicator: {e}")
 
 
 

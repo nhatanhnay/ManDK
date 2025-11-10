@@ -15,7 +15,7 @@ def resource_path(relative_path):
 class HalfCircleWidget(QWidget):
     _instance_counter = 0  # Class variable để đếm instance
     
-    def __init__(self, current_angle, aim_angle, parent=None):
+    def __init__(self, current_angle, aim_angle, parent=None, redline_limits=None, elevation_limits=None):
         super().__init__(parent)
         # Tạo ID duy nhất cho mỗi instance
         HalfCircleWidget._instance_counter += 1
@@ -29,6 +29,14 @@ class HalfCircleWidget(QWidget):
         # Thêm flag để kiểm tra lần đầu tiên cập nhật
         self._first_update = True
         self.static_pixmap = None
+        # Lưu giới hạn redline cho việc làm xám các vạch (cho wheel 360 độ)
+        # redline_limits = [min_angle, max_angle] cho wheel 360 độ
+        # Ví dụ: [-60, 65] nghĩa là vạch < -60 hoặc > 65 sẽ bị làm xám
+        self.redline_limits = redline_limits
+        # Lưu giới hạn cho góc tầm (cho wheel 60 độ)
+        # elevation_limits = [min_angle, max_angle] cho wheel 60 độ
+        # Ví dụ: [10, 60] nghĩa là vạch < 10 hoặc > 60 sẽ bị làm xám
+        self.elevation_limits = elevation_limits
         self._current_angle_anim = QPropertyAnimation(self, b"currentAngle")
         self._aim_angle_anim = QPropertyAnimation(self, b"aimAngle")
         self._current_angle_anim.setDuration(500)
@@ -162,6 +170,21 @@ class HalfCircleWidget(QWidget):
         left_wheel_center = QPointF(start_x + wheel_width/2, center_y)
         right_wheel_center = QPointF(start_x + wheel_width + spacing + wheel_width/2, center_y)
         
+        # Kiểm tra xem các góc có trùng khớp không
+        angle_diff_60 = abs(self._current_angle - self._aim_angle)
+        angle_diff_360 = min(abs(self._current_direction - self._aim_direction),
+                           abs(self._current_direction - self._aim_direction + 360),
+                           abs(self._current_direction - self._aim_direction - 360))
+        
+        is_60_aligned = angle_diff_60 <= 1.0
+        is_360_aligned = angle_diff_360 <= 1.0
+        
+        # Vẽ viền xanh cho wheel nếu trùng khớp
+        if is_60_aligned:
+            self._draw_wheel_border(painter, left_wheel_center, wheel_width, wheel_height, QColor(0, 255, 0))
+        if is_360_aligned:
+            self._draw_wheel_border(painter, right_wheel_center, wheel_width, wheel_height, QColor(0, 255, 0))
+        
         # Vẽ wheel 60 độ bên trái (sử dụng current_angle và aim_angle)
         self._draw_vertical_wheel_dynamic(painter, left_wheel_center, wheel_width, wheel_height, 
                                         self._current_angle, self._aim_angle, is_360=False)
@@ -196,13 +219,22 @@ class HalfCircleWidget(QWidget):
         label_rect1 = QRectF(center.x() - width/2, center.y() - height/2 - 30, width, 15)
         painter.drawText(label_rect1, Qt.AlignCenter, label1)
 
+    def _draw_wheel_border(self, painter: QPainter, center: QPointF, width: float, height: float, color: QColor) -> None:
+        """Vẽ viền màu cho wheel khi trùng khớp."""
+        wheel_rect = QRectF(center.x() - width/2, center.y() - height/2, width, height)
+        painter.setPen(QPen(color, 4))  # Viền dày 4px
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(wheel_rect, 10, 10)
+        
+        # Thêm hiệu ứng sáng bên trong
+        inner_rect = QRectF(center.x() - width/2 + 2, center.y() - height/2 + 2, width - 4, height - 4)
+        painter.setPen(QPen(QColor(color.red(), color.green(), color.blue(), 100), 2))
+        painter.drawRoundedRect(inner_rect, 9, 9)
+
     def _draw_vertical_wheel_dynamic(self, painter: QPainter, center: QPointF, width: float, height: float, 
                                    current_angle: float, aim_angle: float, is_360: bool = False) -> None:
-        """Vẽ phần động của vertical picker wheel - wheel xoay để giá trị current_angle nằm ở thanh giữa, 
-        và thanh kẻ ngang màu đỏ cố định cho aim_angle."""
-        
-        # Vẽ thanh liquid glass highlight cố định ở giữa wheel cho current_angle (phần động)
-        highlight_rect = QRectF(center.x() - width/2 + 5, center.y() - 10, width - 10, 20)
+        """Vẽ phần động của vertical picker wheel - các vạch chia độ cố định, 
+        thanh liquid glass cho current_angle và thanh đỏ cho aim_angle đều di chuyển."""
         
         # Kiểm tra nếu current_angle/current_direction sai lệch ±1 hoặc bằng aim_angle/aim_direction
         if is_360:
@@ -215,77 +247,14 @@ class HalfCircleWidget(QWidget):
             angle_diff = abs(current_angle - aim_angle)
         is_close_to_aim = angle_diff <= 1.0
         
-        # Tạo hiệu ứng liquid glass với gradient trong suốt (không màu)
-        from PyQt5.QtGui import QLinearGradient, QRadialGradient
+        # Vẽ các vạch chia độ CỐ ĐỊNH (không có offset)
+        self._draw_vertical_marks_with_offset(painter, center, width, height, 0, is_360)
         
-        # Background glass với gradient - thay đổi màu dựa trên điều kiện
-        glass_gradient = QLinearGradient(highlight_rect.topLeft(), highlight_rect.bottomRight())
-        if is_close_to_aim:
-            # Màu trắng không trong suốt khi close to aim
-            glass_gradient.setColorAt(0, QColor(255, 255, 255, 200))   # Trắng đậm
-            glass_gradient.setColorAt(0.5, QColor(255, 255, 255, 180)) # Trắng đậm
-            glass_gradient.setColorAt(1, QColor(255, 255, 255, 220))   # Trắng rất đậm
-        else:
-            # Màu bình thường khi không close to aim
-            glass_gradient.setColorAt(0, QColor(255, 255, 255, 30))   # Trắng trong suốt nhạt
-            glass_gradient.setColorAt(0.5, QColor(255, 255, 255, 15)) # Trắng trong suốt rất nhạt
-            glass_gradient.setColorAt(1, QColor(255, 255, 255, 40))   # Trắng trong suốt đậm hơn
+        # Vẽ thanh liquid glass cho current_angle (DI CHUYỂN như thanh đỏ)
+        self._draw_current_angle_bar(painter, center, width, height, current_angle, is_360, is_close_to_aim)
         
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(glass_gradient)
-        painter.drawRoundedRect(highlight_rect, 8, 8)
-        
-        # Thêm viền glass effect - cũng thay đổi theo điều kiện
-        if is_close_to_aim:
-            glass_border = QPen(QColor(255, 255, 255, 255), 2)  # Viền trắng đậm và dày hơn
-        else:
-            glass_border = QPen(QColor(255, 255, 255, 80), 1)   # Viền bình thường
-        painter.setPen(glass_border)
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRoundedRect(highlight_rect, 8, 8)
-        
-        # Thêm highlight shine effect - cũng thay đổi theo điều kiện
-        shine_rect = QRectF(highlight_rect.x() + 2, highlight_rect.y() + 2, 
-                           highlight_rect.width() - 4, highlight_rect.height() * 0.4)
-        shine_gradient = QLinearGradient(shine_rect.topLeft(), shine_rect.bottomLeft())
-        if is_close_to_aim:
-            shine_gradient.setColorAt(0, QColor(255, 255, 255, 255))  # Shine đậm hơn
-            shine_gradient.setColorAt(1, QColor(255, 255, 255, 120))
-        else:
-            shine_gradient.setColorAt(0, QColor(255, 255, 255, 60))   # Shine bình thường
-            shine_gradient.setColorAt(1, QColor(255, 255, 255, 0))
-        
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(shine_gradient)
-        painter.drawRoundedRect(shine_rect, 6, 6)
-        
-        # Tính offset để wheel xoay sao cho current_angle nằm ở giữa (liquid glass)
-        angle_range = 360 if is_360 else 60  # Xác định angle_range dựa trên is_360
-        if is_360:
-            # Cho wheel 360 độ, sử dụng cùng wheel_height_factor như wheel góc tầm để giãn ra
-            wheel_height_factor = 0.7  # Giống hệt wheel góc tầm
-            wheel_range = height * wheel_height_factor  # Phạm vi di chuyển trong wheel
-        else:
-            wheel_height_factor = 0.7
-            wheel_range = height * wheel_height_factor  # Phạm vi di chuyển trong wheel
-        
-        # Logic đúng: để current_angle nằm ở center.y() (liquid glass)
-        if is_360:
-            # Cho wheel 360 độ, chuyển đổi current_direction thành vị trí trong range ±30 (tổng 60 độ)
-            center_angle = self._current_direction if hasattr(self, '_current_direction') else 0
-            # Current_direction luôn ở giữa range (tại vị trí 30 trong range 0-60)
-            normalized_current = 0.5  # Luôn ở giữa
-            wheel_offset = -(wheel_range/2 - normalized_current * wheel_range)
-        else:
-            # Cho wheel 60 độ, normalize trực tiếp
-            normalized_current = current_angle / angle_range  # 0 đến 1
-            wheel_offset = -(height/2 * wheel_height_factor - normalized_current * height * wheel_height_factor)
-        
-        # Vẽ các vạch chia độ với offset
-        self._draw_vertical_marks_with_offset(painter, center, width, height, wheel_offset, is_360)
-        
-        # Vẽ thanh kẻ ngang màu trắng cố định cho aim_angle
-        self._draw_white_horizontal_bar(painter, center, width, height, aim_angle, wheel_offset, is_360)
+        # Vẽ thanh kẻ ngang màu đỏ cho aim_angle
+        self._draw_aim_angle_bar(painter, center, width, height, aim_angle, is_360, is_close_to_aim)
         
         # Hiển thị số current_angle bên dưới wheel với khung
         font = painter.font()
@@ -312,6 +281,270 @@ class HalfCircleWidget(QWidget):
         # Vẽ text với màu trắng
         painter.setPen(QPen(Qt.white, 2))
         painter.drawText(value_rect1, Qt.AlignCenter, f"{displayed_value:.1f}°")
+
+    def _draw_current_angle_bar(self, painter: QPainter, center: QPointF, width: float, height: float, 
+                               current_angle: float, is_360: bool = False, is_close_to_aim: bool = False) -> None:
+        """Vẽ thanh liquid glass cho current_angle - DI CHUYỂN theo góc."""
+        angle_range = 70 if not is_360 else 140  # 0-70 cho góc tầm, -70 đến 70 cho góc hướng
+        
+        # Kiểm tra xem current_angle có nằm trong vùng bị làm xám không
+        is_in_gray_zone = False
+        if is_360 and self.redline_limits:
+            min_limit = self.redline_limits[0]
+            max_limit = self.redline_limits[1]
+            if current_angle < min_limit or current_angle > max_limit:
+                is_in_gray_zone = True
+        elif not is_360 and self.elevation_limits:
+            min_limit = self.elevation_limits[0]
+            max_limit = self.elevation_limits[1]
+            if current_angle < min_limit or current_angle > max_limit:
+                is_in_gray_zone = True
+        
+        # Tính toán vùng vẽ với margin nhỏ (bằng 1/2 chiều cao thanh liquid glass = 10px)
+        margin = 10
+        wheel_top = center.y() - height/2 + margin
+        wheel_bottom = center.y() + height/2 - margin
+        available_height = wheel_bottom - wheel_top
+        
+        # Tính vị trí Y cho current_angle
+        if is_360:
+            # Cho wheel 360 độ: -70 đến 70 độ
+            normalized_current = (current_angle + 70) / angle_range  # 0 đến 1
+        else:
+            # Cho wheel 60 độ: 0 đến 70 độ
+            normalized_current = current_angle / angle_range  # 0 đến 1
+        
+        y_pos = wheel_bottom - normalized_current * available_height
+        
+        # Kiểm tra xem thanh có nằm trong wheel không
+        if wheel_top <= y_pos <= wheel_bottom:
+            # Vẽ thanh liquid glass với gradient
+            from PyQt5.QtGui import QLinearGradient
+            
+            highlight_rect = QRectF(center.x() - width/2 + 5, y_pos - 10, width - 10, 20)
+            
+            # Background glass với gradient - thay đổi màu dựa trên điều kiện
+            glass_gradient = QLinearGradient(highlight_rect.topLeft(), highlight_rect.bottomRight())
+            if is_close_to_aim:
+                # Màu trắng không trong suốt khi close to aim
+                if is_in_gray_zone:
+                    # Nếu ở vùng xám, giảm độ sáng
+                    glass_gradient.setColorAt(0, QColor(180, 180, 180, 150))   # Xám sáng
+                    glass_gradient.setColorAt(0.5, QColor(180, 180, 180, 130)) # Xám sáng
+                    glass_gradient.setColorAt(1, QColor(180, 180, 180, 170))   # Xám sáng
+                else:
+                    glass_gradient.setColorAt(0, QColor(255, 255, 255, 200))   # Trắng đậm
+                    glass_gradient.setColorAt(0.5, QColor(255, 255, 255, 180)) # Trắng đậm
+                    glass_gradient.setColorAt(1, QColor(255, 255, 255, 220))   # Trắng rất đậm
+            else:
+                # Màu bình thường khi không close to aim
+                if is_in_gray_zone:
+                    # Nếu ở vùng xám, làm mờ hơn
+                    glass_gradient.setColorAt(0, QColor(200, 200, 200, 20))   # Xám nhạt trong suốt
+                    glass_gradient.setColorAt(0.5, QColor(200, 200, 200, 10)) # Xám nhạt trong suốt
+                    glass_gradient.setColorAt(1, QColor(200, 200, 200, 30))   # Xám nhạt trong suốt
+                else:
+                    glass_gradient.setColorAt(0, QColor(255, 255, 255, 30))   # Trắng trong suốt nhạt
+                    glass_gradient.setColorAt(0.5, QColor(255, 255, 255, 15)) # Trắng trong suốt rất nhạt
+                    glass_gradient.setColorAt(1, QColor(255, 255, 255, 40))   # Trắng trong suốt đậm hơn
+            
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(glass_gradient)
+            painter.drawRoundedRect(highlight_rect, 8, 8)
+            
+            # Thêm viền glass effect - cũng thay đổi theo điều kiện
+            if is_close_to_aim:
+                if is_in_gray_zone:
+                    glass_border = QPen(QColor(180, 180, 180, 200), 2)  # Viền xám
+                else:
+                    glass_border = QPen(QColor(255, 255, 255, 255), 2)  # Viền trắng đậm và dày hơn
+            else:
+                if is_in_gray_zone:
+                    glass_border = QPen(QColor(200, 200, 200, 50), 1)   # Viền xám nhạt
+                else:
+                    glass_border = QPen(QColor(255, 255, 255, 80), 1)   # Viền bình thường
+            painter.setPen(glass_border)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(highlight_rect, 8, 8)
+            
+            # Thêm highlight shine effect - cũng thay đổi theo điều kiện
+            shine_rect = QRectF(highlight_rect.x() + 2, highlight_rect.y() + 2, 
+                               highlight_rect.width() - 4, highlight_rect.height() * 0.4)
+            shine_gradient = QLinearGradient(shine_rect.topLeft(), shine_rect.bottomLeft())
+            if is_close_to_aim:
+                if is_in_gray_zone:
+                    shine_gradient.setColorAt(0, QColor(200, 200, 200, 180))  # Shine xám
+                    shine_gradient.setColorAt(1, QColor(200, 200, 200, 80))
+                else:
+                    shine_gradient.setColorAt(0, QColor(255, 255, 255, 255))  # Shine đậm hơn
+                    shine_gradient.setColorAt(1, QColor(255, 255, 255, 120))
+            else:
+                if is_in_gray_zone:
+                    shine_gradient.setColorAt(0, QColor(200, 200, 200, 40))   # Shine xám nhạt
+                    shine_gradient.setColorAt(1, QColor(200, 200, 200, 0))
+                else:
+                    shine_gradient.setColorAt(0, QColor(255, 255, 255, 60))   # Shine bình thường
+                    shine_gradient.setColorAt(1, QColor(255, 255, 255, 0))
+            
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(shine_gradient)
+            painter.drawRoundedRect(shine_rect, 6, 6)
+
+    def _draw_aim_angle_bar(self, painter: QPainter, center: QPointF, width: float, height: float, 
+                               aim_angle: float, is_360: bool = False, is_close_to_aim: bool = False) -> None:
+        """Vẽ thanh kẻ ngang cho aim_angle - màu đỏ bình thường, màu hồng nhạt khi gần chạm current_angle."""
+        angle_range = 70 if not is_360 else 140  # 0-70 cho góc tầm, -70 đến 70 cho góc hướng
+        
+        # Kiểm tra xem aim_angle có nằm trong vùng bị làm xám không
+        is_in_gray_zone = False
+        if is_360 and self.redline_limits:
+            min_limit = self.redline_limits[0]
+            max_limit = self.redline_limits[1]
+            if aim_angle < min_limit or aim_angle > max_limit:
+                is_in_gray_zone = True
+        elif not is_360 and self.elevation_limits:
+            min_limit = self.elevation_limits[0]
+            max_limit = self.elevation_limits[1]
+            if aim_angle < min_limit or aim_angle > max_limit:
+                is_in_gray_zone = True
+        
+        # Chọn màu dựa trên điều kiện
+        if is_close_to_aim:
+            if is_in_gray_zone:
+                line_color = QColor(200, 150, 150)  # Màu hồng xám khi gần và ở vùng xám
+                text_color = QColor(80, 80, 80)     # Text xám đậm
+            else:
+                line_color = QColor(255, 100, 100)  # Màu hồng nhạt khi gần
+                text_color = QColor(0, 0, 0)        # Text đen trên nền hồng
+        else:
+            if is_in_gray_zone:
+                line_color = QColor(180, 80, 80)    # Màu đỏ xám khi ở vùng xám
+                text_color = QColor(200, 200, 200)  # Text xám nhạt
+            else:
+                line_color = QColor(255, 0, 0)      # Màu đỏ bình thường
+                text_color = QColor(255, 255, 255)  # Text trắng trên nền đỏ
+        
+        # Tính toán vùng vẽ với margin nhỏ (bằng 1/2 chiều cao thanh liquid glass = 10px)
+        margin = 10
+        wheel_top = center.y() - height/2 + margin
+        wheel_bottom = center.y() + height/2 - margin
+        available_height = wheel_bottom - wheel_top
+        
+        # Tính vị trí Y cho aim_angle
+        if is_360:
+            # Cho wheel 360 độ: -70 đến 70 độ
+            normalized_aim = (aim_angle + 70) / angle_range  # 0 đến 1
+        else:
+            # Cho wheel 60 độ: 0 đến 70 độ
+            normalized_aim = aim_angle / angle_range  # 0 đến 1
+        
+        y_pos = wheel_bottom - normalized_aim * available_height
+        
+        # Kiểm tra xem thanh có nằm trong wheel không
+        if wheel_top <= y_pos <= wheel_bottom:
+            # Thanh nằm trong wheel - vẽ thanh với màu thay đổi
+            painter.setPen(QPen(line_color, 3))  # Màu thay đổi, độ dày 3px
+            start_x = center.x() - width/2 + 5  # Bắt đầu từ cạnh trái wheel
+            end_x = center.x() + width/2 - 5    # Kết thúc ở cạnh phải wheel
+            painter.drawLine(QPointF(start_x, y_pos), QPointF(end_x, y_pos))
+            
+            # Vẽ tam giác chỉ vào thanh
+            if is_360:
+                # Wheel 360 độ: tam giác bên phải wheel
+                indicator_x = center.x() + width/2 + 5  # Vị trí bên phải wheel
+                painter.setPen(QPen(line_color, 2))
+                painter.setBrush(line_color)
+                
+                # Tam giác chỉ sang trái vào wheel
+                triangle_size = 8
+                painter.drawPolygon([
+                    QPointF(indicator_x, y_pos),
+                    QPointF(indicator_x + triangle_size, y_pos - triangle_size/2),
+                    QPointF(indicator_x + triangle_size, y_pos + triangle_size/2)
+                ])
+            else:
+                # Wheel 60 độ: tam giác bên trái wheel
+                indicator_x = center.x() - width/2 - 5  # Vị trí bên trái wheel
+                painter.setPen(QPen(line_color, 2))
+                painter.setBrush(line_color)
+                
+                # Tam giác chỉ sang phải vào wheel
+                triangle_size = 8
+                painter.drawPolygon([
+                    QPointF(indicator_x, y_pos),
+                    QPointF(indicator_x - triangle_size, y_pos - triangle_size/2),
+                    QPointF(indicator_x - triangle_size, y_pos + triangle_size/2)
+                ])
+                
+            # Text bên cạnh tam giác
+            if is_360:
+                text_x = center.x() + width/2 + 18  # Bên phải cho wheel 360 độ
+            else:
+                text_x = center.x() - width/2 - 53  # Bên trái cho wheel 60 độ
+            text_y = y_pos
+        else:
+            # Thanh nằm ngoài wheel - vẽ mũi tên chỉ hướng
+            painter.setPen(QPen(line_color, 2))
+            painter.setBrush(line_color)
+            
+            # Xác định vị trí và hướng mũi tên
+            if y_pos < wheel_top:
+                # Thanh đỏ ở trên wheel - vẽ mũi tên chỉ lên
+                if is_360:
+                    arrow_x = center.x() + width/2 + 15  # Bên phải cho wheel 360 độ
+                else:
+                    arrow_x = center.x() - width/2 - 15  # Bên trái cho wheel 60 độ
+                arrow_y = wheel_top - 5  # Giảm khoảng cách từ 10px xuống 5px
+                triangle_size = 12
+                painter.drawPolygon([
+                    QPointF(arrow_x, arrow_y),  # Đỉnh mũi tên
+                    QPointF(arrow_x - triangle_size/2, arrow_y + triangle_size),  # Góc trái
+                    QPointF(arrow_x + triangle_size/2, arrow_y + triangle_size)   # Góc phải
+                ])
+            else:
+                # Thanh đỏ ở dưới wheel - vẽ mũi tên chỉ xuống
+                if is_360:
+                    arrow_x = center.x() + width/2 + 15  # Bên phải cho wheel 360 độ
+                else:
+                    arrow_x = center.x() - width/2 - 15  # Bên trái cho wheel 60 độ
+                arrow_y = wheel_bottom + 5  # Giảm khoảng cách từ 10px xuống 5px
+                triangle_size = 12
+                painter.drawPolygon([
+                    QPointF(arrow_x, arrow_y),  # Đỉnh mũi tên
+                    QPointF(arrow_x - triangle_size/2, arrow_y - triangle_size),  # Góc trái
+                    QPointF(arrow_x + triangle_size/2, arrow_y - triangle_size)   # Góc phải
+                ])
+            
+            # Text bên cạnh mũi tên
+            if is_360:
+                text_x = center.x() + width/2 + 10  # Bên phải cho wheel 360 độ
+            else:
+                text_x = center.x() - width/2 - 45  # Bên trái cho wheel 60 độ
+            if y_pos < wheel_top:
+                text_y = wheel_top - 5  # Giảm khoảng cách từ 10px xuống 5px
+            else:
+                text_y = wheel_bottom + 5  # Giảm khoảng cách từ 10px xuống 5px
+                
+        value_rect = QRectF(text_x, text_y - 10, 50, 20)
+        
+        # Vẽ nền cho text để dễ đọc hơn
+        painter.setPen(Qt.NoPen)
+        if is_close_to_aim:
+            if is_in_gray_zone:
+                painter.setBrush(QColor(200, 150, 150, 180))  # Nền hồng xám khi gần và ở vùng xám
+            else:
+                painter.setBrush(QColor(255, 100, 100, 200))  # Nền hồng nhạt khi gần
+        else:
+            if is_in_gray_zone:
+                painter.setBrush(QColor(180, 80, 80, 180))    # Nền đỏ xám khi ở vùng xám
+            else:
+                painter.setBrush(QColor(255, 0, 0, 200))      # Nền đỏ bình thường
+        painter.drawRoundedRect(value_rect, 5, 5)
+        
+        # Vẽ text với màu tương phản
+        painter.setPen(QPen(text_color, 2))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawText(value_rect, Qt.AlignCenter, f"{aim_angle:.1f}°")
 
     def _draw_white_horizontal_bar(self, painter: QPainter, center: QPointF, width: float, height: float, 
                                aim_angle: float, wheel_offset: float, is_360: bool = False) -> None:
@@ -466,40 +699,42 @@ class HalfCircleWidget(QWidget):
 
     def _draw_vertical_marks_with_offset(self, painter: QPainter, center: QPointF, width: float, height: float, 
                                        offset_y: float, is_360: bool = False) -> None:
-        """Vẽ các vạch chia độ trên vertical wheel với offset để wheel có thể xoay."""
+        """Vẽ các vạch chia độ trên vertical wheel - CỐ ĐỊNH không có offset."""
         painter.setPen(QPen(Qt.white, 1))
         
-        # Vẽ các vạch từ 0 đến angle_range độ với offset (0 ở dưới, angle_range ở trên)
-        angle_range = 60 if is_360 else 60  # Cả hai wheel đều hiển thị 60 độ
-        step = 5  # Sử dụng cùng step như wheel góc tầm
+        # Xác định range và step
+        step = 5
         
         if is_360:
-            # Cho wheel 360 độ, hiển thị ±30 độ xung quanh current_direction (tổng 60 độ)
-            center_angle = self._current_direction if hasattr(self, '_current_direction') else 0
-            start_angle = center_angle - 30
-            end_angle = center_angle + 30
-            angles = range(int(start_angle), int(end_angle) + 1, step)
+            # Cho wheel 360 độ, hiển thị từ -70 đến 70 độ
+            angle_range = 140  # Tổng range: -70 đến 70
+            angles = range(-70, 71, step)
         else:
-            # Cho wheel 60 độ, hiển thị từ 0 đến 60
-            angles = range(0, angle_range + 1, step)
+            # Cho wheel 60 độ, hiển thị từ 0 đến 70 độ
+            angle_range = 70
+            angles = range(0, 71, step)
+        
+        # Tính toán vùng vẽ với margin nhỏ hơn (bằng 1/2 chiều cao thanh liquid glass = 10px)
+        margin = 10  # 1/2 chiều cao thanh liquid glass (20px)
+        wheel_top = center.y() - height/2 + margin
+        wheel_bottom = center.y() + height/2 - margin
+        available_height = wheel_bottom - wheel_top
             
         for angle in angles:
-            # Tính vị trí Y dựa vào góc và offset
+            # Tính vị trí Y dựa vào góc (CỐ ĐỊNH - không có offset)
             if is_360:
-                # Cho wheel 360 độ, tính toán dựa trên range ±30 độ từ current_direction (tổng 60 độ)
-                center_angle = self._current_direction if hasattr(self, '_current_direction') else 0
-                start_angle = center_angle - 30
-                # Normalize angle trong range 60 độ (0 đến 1) - giống hệt wheel góc tầm
-                normalized_angle_for_pos = (angle - start_angle) / 60  # 0 đến 1
-                wheel_height_factor = 0.7  # Giống hệt wheel góc tầm
-                y_pos = center.y() + height/2 * wheel_height_factor - normalized_angle_for_pos * height * wheel_height_factor + offset_y
+                # Cho wheel 360 độ: -70 đến 70 độ
+                normalized_angle_for_pos = (angle + 70) / angle_range  # 0 đến 1
             else:
+                # Cho wheel 60 độ: 0 đến 70 độ
                 normalized_angle_for_pos = angle / angle_range  # 0 đến 1
-                wheel_height_factor = 0.7
-                y_pos = center.y() + height/2 * wheel_height_factor - normalized_angle_for_pos * height * wheel_height_factor + offset_y
+            
+            # Sử dụng available_height thay vì height * wheel_height_factor
+            y_pos = wheel_bottom - normalized_angle_for_pos * available_height
                 
             # Chỉ vẽ vạch nếu nằm trong wheel
-            if center.y() - height/2 + 10 <= y_pos <= center.y() + height/2 - 10:
+            
+            if wheel_top <= y_pos <= wheel_bottom:
                 # Kiểm tra nếu vạch trắng sai lệch ±1 hoặc bằng vạch đỏ (aim_angle)
                 if is_360:
                     # Cho wheel 360 độ, so sánh với _aim_direction (xử lý góc âm)
@@ -511,36 +746,46 @@ class HalfCircleWidget(QWidget):
                     angle_diff = abs(angle - self._aim_angle)
                 is_close_to_aim = angle_diff <= 1.0
                 
-                # Kiểm tra xem vạch có nằm trong khoảng 10-60 độ không (chỉ cho wheel góc tầm)
-                is_in_bright_range = True  # Mặc định là sáng
-                if not is_360:  # Chỉ áp dụng cho wheel góc tầm (bên trái)
-                    is_in_bright_range = (10 <= angle <= 60)
+                # Kiểm tra xem vạch có nằm trong vùng cần làm xám không
+                is_grayed = False
+                if is_360 and self.redline_limits:
+                    # Wheel 360 độ: làm xám các vạch ngoài khoảng redline_limits
+                    min_limit = self.redline_limits[0]
+                    max_limit = self.redline_limits[1]
+                    if angle < min_limit or angle > max_limit:
+                        is_grayed = True
+                elif not is_360 and self.elevation_limits:
+                    # Wheel 60 độ (góc tầm): làm xám các vạch ngoài khoảng elevation_limits
+                    min_limit = self.elevation_limits[0]
+                    max_limit = self.elevation_limits[1]
+                    if angle < min_limit or angle > max_limit:
+                        is_grayed = True
                 
-                # Độ dài vạch tùy vào góc - logic giống wheel góc tầm
+                # Độ dài vạch tùy vào góc
                 if angle % 15 == 0:  # Vạch dài cho góc chia hết cho 15 (cả hai wheel)
                     mark_width = width * 0.3
-                    if is_close_to_aim:
+                    if is_grayed:
+                        painter.setPen(QPen(QColor(128, 128, 128, 100), 2))  # Xám nhạt
+                    elif is_close_to_aim:
                         painter.setPen(QPen(QColor(255, 255, 255, 255), 2))  # Trắng không trong suốt
-                    elif is_in_bright_range:
+                    else:
                         painter.setPen(QPen(Qt.white, 2))
-                    else:
-                        painter.setPen(QPen(QColor(100, 100, 100), 2))  # Xám cho vạch ngoài khoảng 10-60
-                elif angle % (10 if is_360 else 10) == 0:  # Vạch trung bình
+                elif angle % 10 == 0:  # Vạch trung bình
                     mark_width = width * 0.2
-                    if is_close_to_aim:
+                    if is_grayed:
+                        painter.setPen(QPen(QColor(128, 128, 128, 100), 1.5))  # Xám nhạt
+                    elif is_close_to_aim:
                         painter.setPen(QPen(QColor(255, 255, 255, 255), 1.5))  # Trắng không trong suốt
-                    elif is_in_bright_range:
-                        painter.setPen(QPen(Qt.white, 1.5))
                     else:
-                        painter.setPen(QPen(QColor(100, 100, 100), 1.5))  # Xám
+                        painter.setPen(QPen(Qt.white, 1.5))
                 else:  # Vạch ngắn
                     mark_width = width * 0.1
-                    if is_close_to_aim:
+                    if is_grayed:
+                        painter.setPen(QPen(QColor(128, 128, 128, 100), 1))  # Xám nhạt
+                    elif is_close_to_aim:
                         painter.setPen(QPen(QColor(255, 255, 255, 255), 1))  # Trắng không trong suốt
-                    elif is_in_bright_range:
-                        painter.setPen(QPen(Qt.white, 1))
                     else:
-                        painter.setPen(QPen(QColor(100, 100, 100), 1))  # Xám
+                        painter.setPen(QPen(Qt.white, 1))
                 
                 # Vẽ vạch
                 start_x = center.x() - mark_width/2
@@ -548,16 +793,24 @@ class HalfCircleWidget(QWidget):
                 painter.drawLine(QPointF(start_x, y_pos), QPointF(end_x, y_pos))
                 
                 # Vẽ số cho các góc chính
-                if angle % 15 == 0:  # Cả hai wheel đều vẽ số cho góc chia hết cho 15
+                # Wheel 360 độ: hiển thị số mỗi 15 độ
+                # Wheel 60 độ (góc tầm): hiển thị số mỗi 10 độ
+                show_number = False
+                if is_360:
+                    show_number = (angle % 15 == 0)  # Wheel 360 độ: mỗi 15 độ
+                else:
+                    show_number = (angle % 10 == 0)  # Wheel 60 độ: mỗi 10 độ
+                
+                if show_number:
                     font = painter.font()
                     font.setPointSize(8)
                     painter.setFont(font)
-                    if is_close_to_aim:
+                    if is_grayed:
+                        painter.setPen(QPen(QColor(128, 128, 128, 100), 2))  # Text xám nhạt
+                    elif is_close_to_aim:
                         painter.setPen(QPen(QColor(255, 255, 255, 255), 2))  # Text trắng không trong suốt
-                    elif is_in_bright_range:
-                        painter.setPen(QPen(Qt.white, 2))
                     else:
-                        painter.setPen(QPen(QColor(120, 120, 120), 2))  # Text xám
+                        painter.setPen(QPen(Qt.white, 2))
                     text_rect = QRectF(center.x() + width/2 - 25, y_pos - 8, 20, 16)
                     painter.drawText(text_rect, Qt.AlignCenter, str(angle))
 
@@ -586,12 +839,12 @@ class HalfCircleWidget(QWidget):
         painter.setPen(QPen(QColor(80, 80, 80), 2))
         
         if both_aligned:
-            # Đèn sáng đỏ khi trùng khớp
+            # Đèn sáng xanh lá khi trùng khớp
             from PyQt5.QtGui import QLinearGradient
             light_gradient = QLinearGradient(light_rect.topLeft(), light_rect.bottomRight())
-            light_gradient.setColorAt(0, QColor(255, 0, 0, 220))   # Đỏ sáng
-            light_gradient.setColorAt(0.5, QColor(255, 50, 50, 200))
-            light_gradient.setColorAt(1, QColor(200, 0, 0, 240))
+            light_gradient.setColorAt(0, QColor(0, 255, 0, 220))   # Xanh lá sáng
+            light_gradient.setColorAt(0.5, QColor(50, 255, 50, 200))
+            light_gradient.setColorAt(1, QColor(0, 200, 0, 240))
             painter.setBrush(light_gradient)
         else:
             # Đèn tắt (xám đậm) khi chưa trùng khớp
@@ -602,7 +855,7 @@ class HalfCircleWidget(QWidget):
         # Thêm hiệu ứng sáng khi đèn bật
         if both_aligned:
             # Viền sáng xung quanh - cùng vị trí với đèn chính
-            painter.setPen(QPen(QColor(255, 0, 0, 180), 3))
+            painter.setPen(QPen(QColor(0, 255, 0, 180), 3))
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(light_rect, 8, 8)
             
