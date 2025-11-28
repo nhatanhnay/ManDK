@@ -61,8 +61,8 @@ class InfoTab(GridBackgroundWidget):
 
     def _update_data(self):
         """Cập nhật dữ liệu mô phỏng và refresh display."""
-        system_data_manager.simulate_data()
-        module_manager.simulate_realtime_data()  # Cập nhật dữ liệu module
+        # system_data_manager.simulate_data()  # Vô hiệu hóa - dùng dữ liệu CAN thật
+        # module_manager.simulate_realtime_data()  # Vô hiệu hóa - dùng dữ liệu CAN thật
         
         # Cập nhật trạng thái đèn từ config
         import ui.ui_config as config

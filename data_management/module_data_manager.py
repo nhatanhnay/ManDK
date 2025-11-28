@@ -294,32 +294,11 @@ class ModuleManager:
                         self.update_module_parameters(node_id, module_id, **module_params)
                         
     def simulate_realtime_data(self):
-        """Mô phỏng dữ liệu thời gian thực cho tất cả modules."""
-        import random
-        current_time = int(time.time())
-        
-        for node_id, node_modules in self.modules.items():
-            for module_id, module in node_modules.items():
-                # Tạo biến động nhỏ dựa trên thời gian
-                random.seed(hash(f"{module_id}_{current_time}"))
-                
-                # Biến động nhỏ quanh giá trị hiện tại
-                voltage_delta = random.uniform(-0.5, 0.5)
-                current_delta = random.uniform(-0.2, 0.2)
-                power_delta = random.uniform(-1, 1)
-                temp_delta = random.uniform(-1, 1)
-
-                new_voltage = max(0, module.parameters.voltage + voltage_delta)
-                new_current = max(0, module.parameters.current + current_delta)
-                new_power = max(0, module.parameters.power + power_delta)
-                new_temp = max(0, module.parameters.temperature + temp_delta)
-
-                module.update_parameters(
-                    voltage=new_voltage,
-                    current=new_current,
-                    power=new_power,
-                    temperature=new_temp
-                )
+        """Mô phỏng dữ liệu thời gian thực - ĐÃ VÔ HIỆU HÓA.
+        Dữ liệu sẽ được cập nhật từ CAN bus thật.
+        """
+        # Vô hiệu hóa simulation - dùng dữ liệu thật từ CAN
+        pass
                 
     def get_modules_by_status(self, status: str) -> List[ModuleData]:
         """Lấy tất cả modules theo trạng thái."""

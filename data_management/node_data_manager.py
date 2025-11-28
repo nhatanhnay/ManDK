@@ -4,7 +4,6 @@ Mỗi node có thông tin điện áp theo thời gian, thông báo lỗi và m�
 """
 
 import time
-import random
 from typing import Dict, List, Any
 from datetime import datetime
 
@@ -160,17 +159,11 @@ class SystemDataManager:
         
     def simulate_data(self):
         """
-        Mô phỏng dữ liệu cho các node (chỉ cập nhật readings, không tự động tạo lỗi).
-        Lỗi sẽ được xác định bởi threshold checking trong module system.
+        Mô phỏng dữ liệu cho các node - ĐÃ VÔ HIỆU HÓA.
+        Dữ liệu sẽ được cập nhật từ CAN bus thật.
         """
-        for node in self.nodes.values():
-            # Mô phỏng điện áp (220V ± 10V) - chỉ cập nhật giá trị đo
-            base_voltage = 220.0
-            voltage = base_voltage + random.uniform(-10, 10)
-            node.add_voltage_reading(voltage)
-
-            # Không tự động tạo lỗi - để module threshold manager xử lý
-            # Lỗi sẽ được tự động phát hiện dựa trên ngưỡng của từng module
+        # Vô hiệu hóa simulation - dùng dữ liệu thật từ CAN
+        pass
 
     def refresh_all_node_error_statuses(self):
         """Làm mới trạng thái lỗi của tất cả các node dựa trên module status."""

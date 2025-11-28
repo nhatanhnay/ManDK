@@ -441,12 +441,12 @@ def run():
             # Giàn trái - chỉ cập nhật khoảng cách khi ở chế độ tự động
             if config.DISTANCE_MODE_AUTO_L:
                 config.DISTANCE_L = solutions["cannon_1_distance"]
-            config.DIRECTION_L = solutions["cannon_1_azimuth"]  # Hướng luôn được cập nhật
+            config.AIM_DIRECTION_L = solutions["cannon_1_azimuth"]  # Hướng luôn được cập nhật
             
             # Giàn phải - chỉ cập nhật khoảng cách khi ở chế độ tự động
             if config.DISTANCE_MODE_AUTO_R:
                 config.DISTANCE_R = solutions["cannon_2_distance"]
-            config.DIRECTION_R = solutions["cannon_2_azimuth"]  # Hướng luôn được cập nhật
+            config.AIM_DIRECTION_R = solutions["cannon_2_azimuth"]  # Hướng luôn được cập nhật
             
             mode_l = "AUTO" if config.DISTANCE_MODE_AUTO_L else "MANUAL"
             mode_r = "AUTO" if config.DISTANCE_MODE_AUTO_R else "MANUAL"
