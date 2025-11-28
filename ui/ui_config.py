@@ -27,3 +27,7 @@ READY_STATUS = True   # True = xanh (bình thường), False = đỏ (bất thư
 # Chế độ nhập khoảng cách (True = Tự động từ CAN, False = Thủ công)
 DISTANCE_MODE_AUTO_L = True  # Chế độ tự động cho giàn trái
 DISTANCE_MODE_AUTO_R = True  # Chế độ tự động cho giàn phải
+
+# Chế độ nhập góc hướng (True = Tự động từ CAN, False = Thủ công)
+DIRECTION_MODE_AUTO_L = True  # Chế độ tự động cho giàn trái
+DIRECTION_MODE_AUTO_R = True  # Chế độ tự động cho giàn phải

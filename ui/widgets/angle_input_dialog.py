@@ -194,7 +194,7 @@ class AngleInputDialog(QWidget):
         # Group box cho góc hướng
         direction_group = QGroupBox("Góc hướng (độ)")
         direction_layout = QVBoxLayout()
-        direction_layout.setSpacing(8)
+        direction_layout.setSpacing(15)  # Tăng spacing giữa các phần tử
         
         self.direction_input = QLineEdit()
         self.direction_input.setPlaceholderText("Nhập góc hướng (-180 đến 180)")
@@ -208,6 +208,28 @@ class AngleInputDialog(QWidget):
         self.direction_input.setValidator(direction_validator)
         
         direction_layout.addWidget(self.direction_input)
+        direction_layout.addSpacing(12)  # Thêm khoảng cách giữa input và buttons
+        
+        # Nút chuyển đổi chế độ Auto/Manual cho góc hướng
+        direction_mode_button_layout = QHBoxLayout()
+        direction_mode_button_layout.setSpacing(15)
+        
+        self.direction_mode_label = QLabel()
+        self.direction_mode_label.setMinimumHeight(45)  # Chiều cao label
+        self.direction_mode_label.setMaximumHeight(45)  # Giới hạn chiều cao
+        self.direction_mode_label.setMinimumWidth(180)  # Chiều rộng label
+        self.update_direction_mode_label()
+        direction_mode_button_layout.addWidget(self.direction_mode_label)
+        
+        self.toggle_direction_mode_button = QPushButton()
+        self.update_direction_mode_button()
+        self.toggle_direction_mode_button.clicked.connect(self.toggle_direction_mode)
+        self.toggle_direction_mode_button.setMinimumWidth(180)  # Chiều rộng tối thiểu
+        self.toggle_direction_mode_button.setMinimumHeight(45)  # Chiều cao
+        self.toggle_direction_mode_button.setMaximumHeight(45)  # Giới hạn chiều cao
+        direction_mode_button_layout.addWidget(self.toggle_direction_mode_button)
+        
+        direction_layout.addLayout(direction_mode_button_layout)
         direction_group.setLayout(direction_layout)
         
         # Buttons
@@ -350,6 +372,10 @@ class AngleInputDialog(QWidget):
         # Cập nhật góc tầm preview ban đầu
         self.update_elevation_preview()
         
+        # Cập nhật chế độ góc hướng ban đầu
+        self.update_direction_mode_label()
+        self.update_direction_mode_button()
+        
     def decimal_to_degrees_minutes(self, decimal_degrees):
         """Chuyển đổi từ độ thập phân sang độ phút.
         
@@ -405,6 +431,16 @@ class AngleInputDialog(QWidget):
         self.update_mode_label()
         self.update_mode_button()
         
+    def toggle_direction_mode(self):
+        """Chuyển đổi giữa chế độ tự động và thủ công cho góc hướng."""
+        if self.is_left_side:
+            config.DIRECTION_MODE_AUTO_L = not config.DIRECTION_MODE_AUTO_L
+        else:
+            config.DIRECTION_MODE_AUTO_R = not config.DIRECTION_MODE_AUTO_R
+        
+        self.update_direction_mode_label()
+        self.update_direction_mode_button()
+        
     def update_mode_label(self):
         """Cập nhật label hiển thị chế độ hiện tại."""
         is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
@@ -436,6 +472,54 @@ class AngleInputDialog(QWidget):
         
         button_color = "#ff6600" if is_auto else "#00aa00"
         self.toggle_mode_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {button_color};
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {button_color}dd;
+            }}
+            QPushButton:pressed {{
+                background-color: {button_color}aa;
+            }}
+        """)
+        
+    def update_direction_mode_label(self):
+        """Cập nhật label hiển thị chế độ hiện tại cho góc hướng."""
+        is_auto = config.DIRECTION_MODE_AUTO_L if self.is_left_side else config.DIRECTION_MODE_AUTO_R
+        mode_text = "Chế độ: <b>Tự động</b>" if is_auto else "Chế độ: <b>Thủ công</b>"
+        self.direction_mode_label.setText(mode_text)
+        bg_color = "#004400" if is_auto else "#443300"
+        border_color = "#00ff00" if is_auto else "#ffaa00"
+        text_color = "#00ff00" if is_auto else "#ffaa00"
+        self.direction_mode_label.setStyleSheet(f"""
+            QLabel {{
+                color: {text_color};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 15px;
+                background-color: {bg_color};
+                border: 2px solid {border_color};
+                border-radius: 5px;
+            }}
+        """)
+        
+        # Vô hiệu hóa/kích hoạt ô nhập góc hướng dựa trên chế độ
+        self.direction_input.setEnabled(not is_auto)
+        
+    def update_direction_mode_button(self):
+        """Cập nhật text và style của nút chuyển chế độ cho góc hướng."""
+        is_auto = config.DIRECTION_MODE_AUTO_L if self.is_left_side else config.DIRECTION_MODE_AUTO_R
+        button_text = "Chuyển sang Thủ công" if is_auto else "Chuyển sang Tự động"
+        self.toggle_direction_mode_button.setText(button_text)
+        
+        button_color = "#ff6600" if is_auto else "#00aa00"
+        self.toggle_direction_mode_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {button_color};
                 color: white;
