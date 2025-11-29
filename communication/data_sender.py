@@ -89,18 +89,21 @@ def sender_angle_direction(angle, direction, idx=0x32):
         Exception: Các lỗi khác khi gửi dữ liệu
     """
     try:
+        is_nev = 0x00
+        if angle < 0:
+            angle = angle * -1
+            is_nev = 0x01
         data_launch = [
-            idx,  # Sử dụng idx thay vì hardcode 0x32
+            is_nev,
             angle & 0xFF,
             (angle >> 8) & 0xFF,
             direction & 0xFF,
-            (direction >> 8) & 0xFF,
-            0x11
+            (direction >> 8) & 0xFF
         ]
         
         bus = can.interface.Bus(channel='can0', bustype='socketcan', bitrate=500000)
         msg_launch = can.Message(
-            arbitration_id=0x29,
+            arbitration_id=idx,
             data=data_launch,
             is_extended_id=False
         )
