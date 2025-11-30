@@ -90,15 +90,16 @@ def sender_angle_direction(angle, direction, idx=0x32):
     """
     try:
         is_nev = 0x00
-        if angle < 0:
-            angle = angle * -1
+        if direction < 0:
+            direction = direction * -1
             is_nev = 0x01
         data_launch = [
             is_nev,
             angle & 0xFF,
             (angle >> 8) & 0xFF,
             direction & 0xFF,
-            (direction >> 8) & 0xFF
+            (direction >> 8) & 0xFF,
+            0x11
         ]
         
         bus = can.interface.Bus(channel='can0', bustype='socketcan', bitrate=500000)
