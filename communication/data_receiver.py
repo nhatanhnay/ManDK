@@ -397,7 +397,9 @@ def run():
             
             if msg.arbitration_id == 0x100:
                 if len(msg.data) == 4:
-                    (distance,) = struct.unpack("<f", msg.data)
+                    (distance_tmp,) = struct.unpack("<f", msg.data)
+                    if distance_tmp > 0:
+                        distance = distance_tmp
                     print(f"Received: ID=0x100, Distance: {distance:.2f} km")
                     # Log vào lịch sử
                     try:
