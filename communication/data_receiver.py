@@ -334,9 +334,6 @@ def run():
     compass_thread = threading.Thread(target=compass_reader_thread, daemon=True)
     compass_thread.start()
     
-    distance, direction = 9000, 36
-    distance = random.uniform(4000, 5000)  # Giả lập khoảng cách đến mục tiêu (m)
-    
     try:
         bus = can.interface.Bus(channel='can0', bustype='socketcan')
         print("Listening on can0...")
