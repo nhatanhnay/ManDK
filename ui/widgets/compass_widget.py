@@ -1113,8 +1113,8 @@ class AngleCompass(QWidget):
         """
         path = QtGui.QPainterPath()
         path.moveTo(center)
-        start_angle = angles[0]
-        end_angle = angles[1]
+        start_angle = angles[0] + 90
+        end_angle = 450 - angles[1]
         # Tạo arc cho ellipse với góc nhìn 60 độ
         ellipse_height_60 = 2 * radius * self.isometric_factor
         ellipse_rect = QRectF(center.x() - radius, center.y() - ellipse_height_60/2, 
