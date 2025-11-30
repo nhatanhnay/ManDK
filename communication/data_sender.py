@@ -75,26 +75,22 @@ def sender_ammo_status(idx, data):
         except:
             pass
         return False
-def sender_angle_direction(angle, direction, idx=0x32):
+def sender_angle_direction(angle, direction, idx=0x01B):
     """
     Gửi dữ liệu góc và hướng qua CAN bus.
     
     Args:
         angle: Góc (int)
         direction: Hướng (int)
-        idx: ID của giàn (0x31 cho giàn trái, 0x32 cho giàn phải). Mặc định là 0x32.
+        idx: ID của giàn (0x01A cho giàn trái, 0x01B cho giàn phải). Mặc định là 0x01B.
         
     Raises:
         OSError: Khi CAN device không tồn tại
         Exception: Các lỗi khác khi gửi dữ liệu
     """
     try:
-        is_nev = 0x00
-        if direction < 0:
-            direction = direction * -1
-            is_nev = 0x01
         data_launch = [
-            is_nev,
+            0x11,
             angle & 0xFF,
             (angle >> 8) & 0xFF,
             direction & 0xFF,

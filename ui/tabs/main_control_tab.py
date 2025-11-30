@@ -571,12 +571,12 @@ class MainTab(GridBackgroundWidget):
             current_distance = config.DISTANCE_L
             current_direction = config.DIRECTION_L
             side_text = "Trái"
-            idx = 0x31  # ID cho giàn trái
+            idx = 0x01A  # ID cho giàn trái
         else:
             current_distance = config.DISTANCE_R
             current_direction = config.DIRECTION_R
             side_text = "Phải"
-            idx = 0x32  # ID cho giàn phải
+            idx = 0x01B  # ID cho giàn phải
         
         # Tạo overlay dialog nếu chưa có hoặc tạo mới
         is_left = (side == 'left')

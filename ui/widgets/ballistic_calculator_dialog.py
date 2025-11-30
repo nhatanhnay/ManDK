@@ -828,7 +828,7 @@ class BallisticCalculatorWidget(QWidget):
         direction_left_int = int(direction_left * 10)  # Chuyển sang số nguyên * 10
         
         # Tạo CAN data cho giàn trái
-        idx_left = 0x31
+        idx_left = 0x01A
         can_data_left = [
             idx_left,
             elevation_left_int & 0xFF,
@@ -861,7 +861,7 @@ class BallisticCalculatorWidget(QWidget):
         direction_right_int = int(direction_right * 10)  # Chuyển sang số nguyên * 10
         
         # Tạo CAN data cho giàn phải
-        idx_right = 0x32
+        idx_right = 0x01B
         can_data_right = [
             idx_right,
             elevation_right_int & 0xFF,
