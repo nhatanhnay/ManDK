@@ -1,4 +1,5 @@
 import can
+from ui.tabs.event_log_tab import LogTab
 
 def sender_ammo_status(idx, data):
     """
@@ -52,7 +53,6 @@ def sender_ammo_status(idx, data):
             print(error_msg)
             # Ghi log vào event log
             try:
-                from ui.tabs.event_log_tab import LogTab
                 LogTab.log(error_msg, "ERROR")
             except:
                 pass
@@ -60,7 +60,6 @@ def sender_ammo_status(idx, data):
             error_msg = f"Lỗi CAN OSError: {e}"
             print(error_msg)
             try:
-                from ui.tabs.event_log_tab import LogTab
                 LogTab.log(error_msg, "ERROR")
             except:
                 pass
@@ -70,7 +69,6 @@ def sender_ammo_status(idx, data):
         error_msg = f"Lỗi không xác định khi gửi dữ liệu CAN: {e}"
         print(error_msg)
         try:
-            from ui.tabs.event_log_tab import LogTab
             LogTab.log(error_msg, "ERROR")
         except:
             pass
@@ -97,6 +95,7 @@ def sender_angle_direction(angle, direction, idx=0x01B):
             (direction >> 8) & 0xFF,
             0x11
         ]
+        can_data = ' '.join([f'0x{byte:02X}' for byte in data_launch])
         
         bus = can.interface.Bus(channel='can0', bustype='socketcan', bitrate=500000)
         msg_launch = can.Message(
@@ -104,18 +103,17 @@ def sender_angle_direction(angle, direction, idx=0x01B):
             data=data_launch,
             is_extended_id=False
         )
-        print('CAN message sent successfully')
+        message = f'Dữ liệu gửi góc: {angle/10:.1f}, hướng: {direction/10:.1f} tới ID: {hex(idx)}. Data: {can_data}'
+        LogTab.log(message, "INFO")
         bus.send(msg_launch)
         bus.shutdown()
         return True
         
     except OSError as e:
         if e.errno == 19:  # No such device
-            error_msg = "Lỗi CAN: Không tìm thấy thiết bị 'can0'. Vui lòng kiểm tra kết nối CAN bus."
-            print(error_msg)
+            error_msg = f"Lỗi CAN: Không tìm thấy thiết bị 'can0'. Vui lòng kiểm tra kết nối CAN bus. Dữ liệu gửi: ID {hex(idx)}, Góc {angle/10:.1f}, Hướng {direction/10:.1f}. Data {can_data}"
             # Ghi log vào event log
             try:
-                from ui.tabs.event_log_tab import LogTab
                 LogTab.log(error_msg, "ERROR")
             except:
                 pass
@@ -123,7 +121,6 @@ def sender_angle_direction(angle, direction, idx=0x01B):
             error_msg = f"Lỗi CAN OSError: {e}"
             print(error_msg)
             try:
-                from ui.tabs.event_log_tab import LogTab
                 LogTab.log(error_msg, "ERROR")
             except:
                 pass
@@ -133,7 +130,6 @@ def sender_angle_direction(angle, direction, idx=0x01B):
         error_msg = f"Lỗi không xác định khi gửi dữ liệu CAN: {e}"
         print(error_msg)
         try:
-            from ui.tabs.event_log_tab import LogTab
             LogTab.log(error_msg, "ERROR")
         except:
             pass

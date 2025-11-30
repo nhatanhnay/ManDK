@@ -648,34 +648,8 @@ class MainTab(GridBackgroundWidget):
             # Chuyển đổi sang int cho CAN bus
             elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
             direction_int = int(direction * 10)  # Nhân 10 để giữ 1 chữ số thập phân
-            
-            # Tạo CAN message data để log
-            can_data = [
-                idx,
-                elevation_int & 0xFF,
-                (elevation_int >> 8) & 0xFF,
-                direction_int & 0xFF,
-                (direction_int >> 8) & 0xFF,
-                0x11
-            ]
-            can_data_hex = ' '.join([f'0x{byte:02X}' for byte in can_data])
-            can_data_explained = (
-                f"[Giàn: {'Trái' if idx == 0x31 else 'Phải'} (0x{idx:02X}), "
-                f"Góc tầm: {elevation:.1f}° (0x{elevation_int:04X}), "
-                f"Góc hướng: {direction:.1f}° (0x{direction_int:04X}), "
-                f"Lệnh: 0x{can_data[5]:02X}]"
-            )
-            
             # Gửi lệnh với idx tương ứng
-            if sender_angle_direction(elevation_int, direction_int, idx):
-                from ui.tabs.event_log_tab import LogTab
-                LogTab.log(f"Đã gửi lệnh khoảng cách {distance:.1f}m (góc tầm {elevation:.1f}°) và góc hướng {direction:.1f}° cho giàn {side_text} - CAN Data: [{can_data_hex}]", "SUCCESS")
-                # Bỏ popup, chỉ log
-            else:
-                from ui.tabs.event_log_tab import LogTab
-                LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn {side_text} - CAN Data: [{can_data_hex}] - ID: 0x29", "ERROR")
-                LogTab.log(f"Chi tiết CAN Data: {can_data_explained}", "ERROR")
-                # Bỏ popup, chỉ log
+            sender_angle_direction(elevation_int, direction_int, idx)
         else:
             from ui.tabs.event_log_tab import LogTab
             LogTab.log(f"Không thể tính toán góc tầm - bảng bắn chưa được tải", "ERROR")
