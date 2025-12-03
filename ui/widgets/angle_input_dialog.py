@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QGroupBox, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QGroupBox, QGraphicsOpacityEffect, QButtonGroup, QRadioButton
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QDoubleValidator, QPainter, QColor
+from PyQt5.QtGui import QDoubleValidator, QPainter, QColor, QFont
 import ui.ui_config as config
-from common.utils import get_firing_table_interpolator
+from common.utils import get_firing_table_interpolator, resource_path, load_firing_table
+import yaml
 
 
 class AngleInputDialog(QWidget):
@@ -21,10 +22,46 @@ class AngleInputDialog(QWidget):
         self.direction_value = current_direction
         self.is_left_side = is_left_side  # True nếu giàn trái, False nếu giàn phải
         
+        # Đọc giới hạn từ config
+        self._load_limits_from_config()
+        
+        # Biến theo dõi bảng bắn được chọn (True = bảng bắn cao, False = bảng bắn thấp)
+        self.use_high_table = False
+        self._high_table_interpolator = None  # Cache interpolator bảng bắn cao
+        
         # Làm cho widget này hiển thị trên tất cả widget khác
         self.setWindowFlags(Qt.Widget)
         
         self.setupUi()
+    
+    def _load_limits_from_config(self):
+        """Đọc giới hạn góc tầm và góc hướng từ config.yaml"""
+        try:
+            with open(resource_path('config.yaml'), 'r', encoding='utf-8') as f:
+                yaml_config = yaml.safe_load(f)
+            
+            # Giới hạn góc tầm
+            elevation_limits = yaml_config.get('Widgets', {}).get('LimitAngles', {}).get('Elevation', [10, 60])
+            self.elevation_min = elevation_limits[0] if len(elevation_limits) > 0 else 10
+            self.elevation_max = elevation_limits[1] if len(elevation_limits) > 1 else 60
+            
+            # Giới hạn góc hướng (redlines) - khác nhau cho trái và phải
+            if self.is_left_side:
+                redlines = yaml_config.get('Widgets', {}).get('CompassLeft', {}).get('redlines', [60, 65])
+            else:
+                redlines = yaml_config.get('Widgets', {}).get('CompassRight', {}).get('redlines', [65, 60])
+            
+            # redlines[0] là giới hạn âm, redlines[1] là giới hạn dương
+            self.direction_neg_limit = redlines[0] if len(redlines) > 0 else 60
+            self.direction_pos_limit = redlines[1] if len(redlines) > 1 else 65
+            
+        except Exception as e:
+            print(f"Lỗi đọc config.yaml: {e}")
+            # Giá trị mặc định
+            self.elevation_min = 10
+            self.elevation_max = 60
+            self.direction_neg_limit = 60
+            self.direction_pos_limit = 65
         
     def paintEvent(self, event):
         """Vẽ background semi-transparent cho overlay."""
@@ -44,33 +81,61 @@ class AngleInputDialog(QWidget):
         dialog_container = QWidget()
         dialog_container.setMinimumWidth(600)
         dialog_container.setMaximumWidth(700)
-        dialog_container.setMaximumHeight(750)  # Tăng chiều cao để chứa đủ các phần tử
+        dialog_container.setFixedHeight(900)  # Chiều cao cố định
         
         layout = QVBoxLayout()
         layout.setSpacing(20)  # Tăng spacing giữa các group box
         layout.setContentsMargins(20, 20, 20, 20)
         
-        # Group box cho khoảng cách
-        distance_group = QGroupBox("Khoảng cách (m)")
+        # Group box cho khoảng cách/góc tầm
+        self.distance_group = QGroupBox("Khoảng cách (m)")
         distance_layout = QVBoxLayout()
         distance_layout.setSpacing(15)  # Tăng spacing giữa các phần tử
         
+        # Nút chuyển đổi chế độ nhập: Khoảng cách / Góc tầm trực tiếp
+        input_type_layout = QHBoxLayout()
+        input_type_layout.setSpacing(15)
+        
+        self.input_type_label = QLabel()
+        self.input_type_label.setMinimumHeight(45)
+        self.input_type_label.setMaximumHeight(45)
+        self.input_type_label.setMinimumWidth(200)
+        self.update_input_type_label()
+        input_type_layout.addWidget(self.input_type_label)
+        
+        self.toggle_input_type_button = QPushButton()
+        self.update_input_type_button()
+        self.toggle_input_type_button.clicked.connect(self.toggle_input_type)
+        self.toggle_input_type_button.setMinimumWidth(200)
+        self.toggle_input_type_button.setMinimumHeight(45)
+        self.toggle_input_type_button.setMaximumHeight(45)
+        input_type_layout.addWidget(self.toggle_input_type_button)
+        
+        distance_layout.addLayout(input_type_layout)
+        distance_layout.addSpacing(8)
+        
         self.distance_input = QLineEdit()
-        self.distance_input.setPlaceholderText("Nhập khoảng cách (0-10000)")
+        self.distance_input.setPlaceholderText("Nhập khoảng cách (0 -> 10000)")
         self.distance_input.setText(str(self.distance_value))
         self.distance_input.setMinimumHeight(50)  # Chiều cao ô nhập
         self.distance_input.setMaximumHeight(50)  # Giới hạn chiều cao tối đa
 
         # Validator cho khoảng cách (0-10000 mét)
-        distance_validator = QDoubleValidator(0.0, 10000.0, 1)
-        distance_validator.setNotation(QDoubleValidator.StandardNotation)
-        self.distance_input.setValidator(distance_validator)
+        self.distance_validator = QDoubleValidator(0.0, 10000.0, 1)
+        self.distance_validator.setNotation(QDoubleValidator.StandardNotation)
+        self.distance_input.setValidator(self.distance_validator)
+        
+        # Validator cho góc tầm (từ config)
+        self.elevation_validator = QDoubleValidator(float(self.elevation_min), float(self.elevation_max), 2)
+        self.elevation_validator.setNotation(QDoubleValidator.StandardNotation)
         
         distance_layout.addWidget(self.distance_input)
         distance_layout.addSpacing(12)  # Thêm khoảng cách giữa input và buttons
         
-        # Nút chuyển đổi chế độ Auto/Manual
-        mode_button_layout = QHBoxLayout()
+        # Widget container cho nút chuyển đổi chế độ Auto/Manual (để có thể ẩn/hiện)
+        self.mode_button_container = QWidget()
+        mode_button_layout = QHBoxLayout(self.mode_button_container)
+        mode_button_layout.setContentsMargins(0, 0, 0, 0)
         mode_button_layout.setSpacing(15)
         
         self.mode_label = QLabel()
@@ -88,11 +153,11 @@ class AngleInputDialog(QWidget):
         self.toggle_mode_button.setMaximumHeight(45)  # Giới hạn chiều cao
         mode_button_layout.addWidget(self.toggle_mode_button)
         
-        distance_layout.addLayout(mode_button_layout)
-        distance_group.setLayout(distance_layout)
+        distance_layout.addWidget(self.mode_button_container)
+        self.distance_group.setLayout(distance_layout)
         
         # Group box cho góc tầm preview với 2 ô
-        elevation_preview_group = QGroupBox("Góc tầm tính toán")
+        self.elevation_preview_group = QGroupBox("Góc tầm tính toán")
         elevation_preview_layout = QHBoxLayout()
         elevation_preview_layout.setSpacing(15)
         
@@ -186,7 +251,81 @@ class AngleInputDialog(QWidget):
         
         elevation_preview_layout.addLayout(decimal_container)
         elevation_preview_layout.addLayout(dms_container)
-        elevation_preview_group.setLayout(elevation_preview_layout)
+        self.elevation_preview_group.setLayout(elevation_preview_layout)
+        
+        # Widget container cho chọn bảng bắn cao/thấp (chỉ hiển thị khi khoảng cách >= 9100)
+        self.table_selection_container = QWidget()
+        self.table_selection_container.setStyleSheet("""
+            QWidget {
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        table_selection_layout = QHBoxLayout(self.table_selection_container)
+        table_selection_layout.setContentsMargins(10, 5, 10, 5)
+        table_selection_layout.setSpacing(20)
+        
+        table_selection_label = QLabel("Chọn bảng bắn:")
+        table_selection_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 13px;
+                font-weight: bold;
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        table_selection_layout.addWidget(table_selection_label)
+        
+        # Radio buttons cho bảng bắn - style đơn giản màu trắng
+        self.table_button_group = QButtonGroup(self)
+        
+        radio_style = """
+            QRadioButton {
+                color: white;
+                font-size: 13px;
+                background-color: transparent;
+                padding: 5px 10px;
+                border: none;
+            }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+            }
+            QRadioButton::indicator:checked {
+                background-color: white;
+                border: 2px solid white;
+                border-radius: 8px;
+            }
+            QRadioButton::indicator:unchecked {
+                background-color: transparent;
+                border: 2px solid white;
+                border-radius: 8px;
+            }
+        """
+        
+        self.low_table_radio = QRadioButton("Bảng bắn thấp")
+        self.low_table_radio.setChecked(True)
+        self.low_table_radio.setStyleSheet(radio_style)
+        
+        self.high_table_radio = QRadioButton("Bảng bắn cao")
+        self.high_table_radio.setStyleSheet(radio_style)
+        
+        self.table_button_group.addButton(self.low_table_radio, 0)
+        self.table_button_group.addButton(self.high_table_radio, 1)
+        
+        table_selection_layout.addWidget(self.low_table_radio)
+        table_selection_layout.addWidget(self.high_table_radio)
+        table_selection_layout.addStretch()
+        
+        # Kết nối signal khi thay đổi bảng bắn
+        self.table_button_group.buttonClicked.connect(self.on_table_selection_changed)
+        
+        # Ẩn mặc định, chỉ hiện khi khoảng cách > 9100
+        self.table_selection_container.setVisible(False)
+        
+        # Cập nhật UI dựa trên chế độ nhập (khoảng cách hay góc tầm)
+        self.update_input_type_ui()
         
         # Kết nối signal để cập nhật góc tầm khi thay đổi khoảng cách
         self.distance_input.textChanged.connect(self.update_elevation_preview)
@@ -197,13 +336,14 @@ class AngleInputDialog(QWidget):
         direction_layout.setSpacing(15)  # Tăng spacing giữa các phần tử
         
         self.direction_input = QLineEdit()
-        self.direction_input.setPlaceholderText("Nhập góc hướng (-180 đến 180)")
-        self.direction_input.setText(str(self.direction_value))
+        # Placeholder với giới hạn từ config (âm -> dương)
+        self.direction_input.setPlaceholderText(f"Nhập góc hướng (-{self.direction_neg_limit} -> {self.direction_pos_limit})")
+        # Không set text mặc định để placeholder hiển thị
         self.direction_input.setMinimumHeight(50)  # Chiều cao ô nhập
         self.direction_input.setMaximumHeight(50)  # Giới hạn chiều cao
         
-        # Validator cho góc hướng (-180 đến 180 độ)
-        direction_validator = QDoubleValidator(-180.0, 180.0, 1)
+        # Validator cho góc hướng (từ config)
+        direction_validator = QDoubleValidator(-float(self.direction_neg_limit), float(self.direction_pos_limit), 1)
         direction_validator.setNotation(QDoubleValidator.StandardNotation)
         self.direction_input.setValidator(direction_validator)
         
@@ -257,8 +397,9 @@ class AngleInputDialog(QWidget):
         
         # Add all to dialog container layout
         layout.addWidget(title_label)
-        layout.addWidget(distance_group)
-        layout.addWidget(elevation_preview_group)
+        layout.addWidget(self.distance_group)
+        layout.addWidget(self.elevation_preview_group)
+        layout.addWidget(self.table_selection_container)  # Thêm widget chọn bảng bắn
         layout.addWidget(direction_group)
         layout.addSpacing(10)
         layout.addLayout(button_layout)
@@ -314,10 +455,15 @@ class AngleInputDialog(QWidget):
                 border: 2px solid #666666;
                 border-radius: 5px;
                 padding: 15px 20px;
-                font-size: 22px;
-                font-weight: bold;
+                font-size: 14px;
+                font-weight: normal;
                 selection-background-color: #0078d4;
                 selection-color: white;
+            }
+            QLineEdit::placeholder {
+                font-size: 12px;
+                font-weight: normal;
+                color: #888888;
             }
             QLineEdit:focus {
                 border: 3px solid #0078d4;
@@ -396,12 +542,26 @@ class AngleInputDialog(QWidget):
             if not distance_text:
                 self.elevation_decimal_label.setText("--")
                 self.elevation_dms_label.setText("--")
+                self.table_selection_container.setVisible(False)
                 return
             
             distance = float(distance_text)
             
-            # Lấy interpolator từ bảng bắn
-            interpolator = get_firing_table_interpolator()
+            # Hiển thị/ẩn widget chọn bảng bắn dựa trên khoảng cách
+            if distance >= 9100:
+                self.table_selection_container.setVisible(True)
+            else:
+                self.table_selection_container.setVisible(False)
+                # Reset về bảng bắn thấp khi khoảng cách < 9100
+                self.low_table_radio.setChecked(True)
+                self.use_high_table = False
+            
+            # Chọn interpolator dựa trên bảng bắn được chọn
+            if self.use_high_table and distance >= 9100:
+                interpolator = self._get_high_table_interpolator()
+            else:
+                interpolator = get_firing_table_interpolator()
+            
             if interpolator:
                 # Lấy ly giác (chưa chuyển sang độ)
                 elevation_mils = interpolator.interpolate_angle_mils(distance)
@@ -420,6 +580,19 @@ class AngleInputDialog(QWidget):
         except ValueError:
             self.elevation_decimal_label.setText("--")
             self.elevation_dms_label.setText("--")
+            self.table_selection_container.setVisible(False)
+    
+    def _get_high_table_interpolator(self):
+        """Lấy hoặc tạo interpolator cho bảng bắn cao."""
+        if self._high_table_interpolator is None:
+            self._high_table_interpolator = load_firing_table("table1_high.csv")
+        return self._high_table_interpolator
+    
+    def on_table_selection_changed(self, button):
+        """Xử lý khi người dùng thay đổi lựa chọn bảng bắn."""
+        self.use_high_table = (button == self.high_table_radio)
+        # Cập nhật lại góc tầm preview
+        self.update_elevation_preview()
     
     def toggle_distance_mode(self):
         """Chuyển đổi giữa chế độ tự động và thủ công."""
@@ -430,6 +603,107 @@ class AngleInputDialog(QWidget):
         
         self.update_mode_label()
         self.update_mode_button()
+    
+    def toggle_input_type(self):
+        """Chuyển đổi giữa chế độ nhập khoảng cách và nhập góc tầm trực tiếp."""
+        if self.is_left_side:
+            config.ELEVATION_INPUT_FROM_DISTANCE_L = not config.ELEVATION_INPUT_FROM_DISTANCE_L
+        else:
+            config.ELEVATION_INPUT_FROM_DISTANCE_R = not config.ELEVATION_INPUT_FROM_DISTANCE_R
+        
+        self.update_input_type_label()
+        self.update_input_type_button()
+        self.update_input_type_ui()
+    
+    def update_input_type_label(self):
+        """Cập nhật label hiển thị kiểu nhập hiện tại."""
+        is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
+        if is_distance:
+            mode_text = "Nhập: <b>Khoảng cách</b>"
+            bg_color = "#003366"
+            border_color = "#0078d4"
+            text_color = "#66b3ff"
+        else:
+            mode_text = "Nhập: <b>Góc tầm trực tiếp</b>"
+            bg_color = "#660033"
+            border_color = "#ff3366"
+            text_color = "#ff6699"
+        
+        self.input_type_label.setText(mode_text)
+        self.input_type_label.setStyleSheet(f"""
+            QLabel {{
+                color: {text_color};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 15px;
+                background-color: {bg_color};
+                border: 2px solid {border_color};
+                border-radius: 5px;
+            }}
+        """)
+    
+    def update_input_type_button(self):
+        """Cập nhật text và style của nút chuyển kiểu nhập."""
+        is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
+        if is_distance:
+            button_text = "Chuyển sang Góc tầm"
+            button_color = "#ff3366"
+        else:
+            button_text = "Chuyển sang Khoảng cách"
+            button_color = "#0078d4"
+        
+        self.toggle_input_type_button.setText(button_text)
+        self.toggle_input_type_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {button_color};
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {button_color}dd;
+            }}
+            QPushButton:pressed {{
+                background-color: {button_color}aa;
+            }}
+        """)
+    
+    def update_input_type_ui(self):
+        """Cập nhật giao diện dựa trên kiểu nhập (khoảng cách hay góc tầm)."""
+        is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
+        
+        if is_distance:
+            # Chế độ nhập khoảng cách
+            self.distance_group.setTitle("Khoảng cách (m)")
+            self.distance_input.setPlaceholderText("Nhập khoảng cách (0 -> 10000)")
+            self.distance_input.setValidator(self.distance_validator)
+            self.distance_input.setText(str(self.distance_value))
+            self.elevation_preview_group.setVisible(True)
+            self.elevation_preview_group.setTitle("Góc tầm tính toán")
+            # Hiển thị phần chọn chế độ tự động/thủ công
+            self.mode_button_container.setVisible(True)
+            # Kích hoạt/vô hiệu hóa ô nhập dựa trên chế độ tự động/thủ công
+            is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
+            self.distance_input.setEnabled(not is_auto)
+        else:
+            # Chế độ nhập góc tầm trực tiếp - luôn là thủ công
+            self.distance_group.setTitle("Góc tầm (độ)")
+            self.distance_input.setPlaceholderText(f"Nhập góc tầm ({self.elevation_min} -> {self.elevation_max})")
+            self.distance_input.setValidator(self.elevation_validator)
+            # Khi chuyển sang góc tầm, hiển thị giá trị góc tầm hiện tại nếu có
+            self.distance_input.setText("")
+            self.elevation_preview_group.setVisible(False)
+            # Ẩn phần chọn chế độ tự động/thủ công vì nhập góc tầm luôn là thủ công
+            self.mode_button_container.setVisible(False)
+            # Luôn kích hoạt ô nhập khi nhập góc tầm trực tiếp
+            self.distance_input.setEnabled(True)
+        
+        # Cập nhật lại preview nếu đang ở chế độ khoảng cách
+        if is_distance:
+            self.update_elevation_preview()
         
     def toggle_direction_mode(self):
         """Chuyển đổi giữa chế độ tự động và thủ công cho góc hướng."""
@@ -548,16 +822,33 @@ class AngleInputDialog(QWidget):
         self.hide()
         
     def get_values(self):
-        """Lấy giá trị khoảng cách và góc hướng đã nhập."""
+        """Lấy giá trị khoảng cách/góc tầm và góc hướng đã nhập.
+        
+        Returns:
+            tuple: (distance_or_elevation, direction, is_direct_elevation, use_high_table)
+                - distance_or_elevation: khoảng cách (m) hoặc góc tầm trực tiếp (độ)
+                - direction: góc hướng (độ)
+                - is_direct_elevation: True nếu đang nhập góc tầm trực tiếp, False nếu nhập khoảng cách
+                - use_high_table: True nếu sử dụng bảng bắn cao, False nếu bảng bắn thấp
+        """
         try:
-            distance = float(self.distance_input.text()) if self.distance_input.text() else self.distance_value
+            is_direct_elevation = not (config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R)
+            
+            input_value = float(self.distance_input.text()) if self.distance_input.text() else 0
             direction = float(self.direction_input.text()) if self.direction_input.text() else self.direction_value
             
-            # Clamp values trong range hợp lệ
-            distance = max(0.0, min(10000.0, distance))
-            direction = max(-180.0, min(180.0, direction))
+            if is_direct_elevation:
+                # Đang nhập góc tầm trực tiếp - clamp theo giới hạn từ config
+                input_value = max(float(self.elevation_min), min(float(self.elevation_max), input_value))
+            else:
+                # Đang nhập khoảng cách
+                input_value = max(0.0, min(10000.0, input_value))
             
-            return distance, direction
+            # Clamp góc hướng theo giới hạn từ config
+            direction = max(-float(self.direction_neg_limit), min(float(self.direction_pos_limit), direction))
+            
+            return input_value, direction, is_direct_elevation, self.use_high_table
         except ValueError:
             # Trả về giá trị mặc định nếu parse lỗi
-            return self.distance_value, self.direction_value
+            is_direct_elevation = not (config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R)
+            return self.distance_value, self.direction_value, is_direct_elevation, self.use_high_table

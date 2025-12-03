@@ -15,7 +15,7 @@ from communication.data_sender import sender_angle_direction, sender_ammo_status
 import yaml
 import random
 import math
-from common.utils import resource_path, get_firing_table_interpolator
+from common.utils import resource_path, get_firing_table_interpolator, load_firing_table
 
 class GridBackgroundWidget(QtWidgets.QWidget):
     """Widget với grid background cho toàn bộ app với hiệu ứng dot nhấp nháy."""
@@ -591,8 +591,15 @@ class MainTab(GridBackgroundWidget):
             self.angle_input_dialog.is_left_side = is_left
             self.angle_input_dialog.distance_value = current_distance
             self.angle_input_dialog.direction_value = current_direction
-            self.angle_input_dialog.distance_input.setText(str(current_distance))
-            self.angle_input_dialog.direction_input.setText(str(current_direction))
+            # Chỉ set text nếu giá trị khác 0, nếu không để placeholder hiển thị
+            if current_distance != 0:
+                self.angle_input_dialog.distance_input.setText(str(current_distance))
+            else:
+                self.angle_input_dialog.distance_input.clear()
+            if current_direction != 0:
+                self.angle_input_dialog.direction_input.setText(str(current_direction))
+            else:
+                self.angle_input_dialog.direction_input.clear()
             # Cập nhật label và button chế độ
             self.angle_input_dialog.update_mode_label()
             self.angle_input_dialog.update_mode_button()
@@ -617,22 +624,13 @@ class MainTab(GridBackgroundWidget):
     def _handle_angle_input_accepted(self, side, idx):
         """Xử lý khi người dùng xác nhận nhập khoảng cách và góc hướng."""
         # Lấy giá trị đã nhập
-        distance, direction = self.angle_input_dialog.get_values()
+        input_value, direction, is_direct_elevation, use_high_table = self.angle_input_dialog.get_values()
         
         side_text = "Trái" if side == 'left' else "Phải"
         
-        # Cập nhật khoảng cách vào config (chỉ khi ở chế độ thủ công)
-        if side == 'left':
-            if not config.DISTANCE_MODE_AUTO_L:  # Chỉ cập nhật khi ở chế độ thủ công
-                config.DISTANCE_L = distance
-        else:
-            if not config.DISTANCE_MODE_AUTO_R:  # Chỉ cập nhật khi ở chế độ thủ công
-                config.DISTANCE_R = distance
-        
-        # Tính toán góc tầm từ khoảng cách sử dụng bảng bắn
-        interpolator = get_firing_table_interpolator()
-        if interpolator:
-            elevation = interpolator.interpolate_angle(distance)
+        if is_direct_elevation:
+            # Nhập góc tầm trực tiếp - không cần tính từ khoảng cách
+            elevation = input_value
             
             # Cập nhật góc mục tiêu
             if side == 'left':
@@ -648,12 +646,61 @@ class MainTab(GridBackgroundWidget):
             # Chuyển đổi sang int cho CAN bus
             elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
             direction_int = int(direction * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+            
             # Gửi lệnh với idx tương ứng
             sender_angle_direction(elevation_int, direction_int, idx)
-        else:
+            
+            # Log
             from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"Không thể tính toán góc tầm - bảng bắn chưa được tải", "ERROR")
-            # Bỏ popup, chỉ log
+            LogTab.log(f"Đã nhập góc tầm trực tiếp {elevation:.1f}° và góc hướng {direction:.1f}° cho giàn {side_text}", "INFO")
+        else:
+            # Nhập khoảng cách - tính toán góc tầm từ bảng bắn
+            distance = input_value
+            
+            # Cập nhật khoảng cách vào config (chỉ khi ở chế độ thủ công)
+            if side == 'left':
+                if not config.DISTANCE_MODE_AUTO_L:  # Chỉ cập nhật khi ở chế độ thủ công
+                    config.DISTANCE_L = distance
+            else:
+                if not config.DISTANCE_MODE_AUTO_R:  # Chỉ cập nhật khi ở chế độ thủ công
+                    config.DISTANCE_R = distance
+            
+            # Chọn bảng bắn dựa trên lựa chọn của người dùng (chỉ khi khoảng cách >= 9100)
+            if use_high_table and distance >= 9100:
+                interpolator = load_firing_table("table1_high.csv")
+                table_name = "bảng bắn cao"
+            else:
+                interpolator = get_firing_table_interpolator()
+                table_name = "bảng bắn thấp"
+            
+            if interpolator:
+                elevation = interpolator.interpolate_angle(distance)
+                
+                # Cập nhật góc mục tiêu
+                if side == 'left':
+                    config.AIM_ANGLE_L = elevation
+                    config.AIM_DIRECTION_L = direction
+                else:
+                    config.AIM_ANGLE_R = elevation
+                    config.AIM_DIRECTION_R = direction
+                
+                # Gửi lệnh qua CAN bus
+                from communication.data_sender import sender_angle_direction
+                
+                # Chuyển đổi sang int cho CAN bus
+                elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+                direction_int = int(direction * 10)  # Nhân 10 để giữ 1 chữ số thập phân
+                # Gửi lệnh với idx tương ứng
+                sender_angle_direction(elevation_int, direction_int, idx)
+                
+                # Log thông tin bảng bắn được sử dụng
+                from ui.tabs.event_log_tab import LogTab
+                if distance >= 9100:
+                    LogTab.log(f"Sử dụng {table_name} cho khoảng cách {distance:.1f}m - Góc tầm: {elevation:.1f}°", "INFO")
+            else:
+                from ui.tabs.event_log_tab import LogTab
+                LogTab.log(f"Không thể tính toán góc tầm - bảng bắn chưa được tải", "ERROR")
+                # Bỏ popup, chỉ log
 
     def update_half_compass_angles(self, corrections):
         """Lưu lượng sửa từ ballistic calculator - sẽ được áp dụng trong update_data()."""

@@ -77,10 +77,8 @@ Widgets:
   CompassLeft:
     height: 370
     redlines:
-      # Góc compass (0° = Bắc/trên, góc tăng theo chiều kim đồng hồ)
-      # 60 + 90 = 150, 450 - 65 = 385, 60 là phần bên trái, 65 là phần bên phải
-      - 60
-      - 65
+      - 60 # âm
+      - 65 # dương
     style: "background-color: rgb(255, 255, 255);"
     width: 370
     x: 20
@@ -88,10 +86,8 @@ Widgets:
   CompassRight:
     height: 370
     redlines:
-      # Góc compass (0° = Bắc/trên, góc tăng theo chiều kim đồng hồ)
-      # 65 + 90 = 155, 450 - 60 = 390, 65 là phần bên trái, 60 là phần bên phải
-      - 65
-      - 60
+      - 65 # âm
+      - 60 # dương
     style: "background-color: rgb(255, 255, 255);"
     width: 370
     x: 890
