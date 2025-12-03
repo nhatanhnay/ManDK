@@ -15,6 +15,18 @@ from typing import List
 import serial
 import threading
 
+# Import CAN configuration
+from communication.can_config import (
+    CAN_CHANNEL, CAN_BUSTYPE, CAN_BITRATE,
+    CAN_ID_DISTANCE, CAN_ID_DIRECTION,
+    CAN_ID_CANNON_LEFT, CAN_ID_CANNON_RIGHT,
+    CAN_ID_AMMO_STATUS,
+    CAN_ID_MODULE_DATA_START, CAN_ID_MODULE_DATA_END,
+    SIDE_CODE_LEFT, SIDE_CODE_RIGHT,
+    COMPASS_PORT, COMPASS_BAUDRATE, COMPASS_TIMEOUT,
+    is_module_data_id
+)
+
 # Thêm các lớp từ targeting system
 class Point2D:
     """Lớp biểu diễn điểm trong không gian 2D."""
@@ -171,23 +183,22 @@ def extract_heading(binary_string: bytes) -> float:
 
 def compass_reader_thread():
     """Thread đọc dữ liệu từ la bàn và cập nhật W_DIRECTION."""
-    PORT_NAME = "/dev/ttyUSB0"
     
     try:
         Com_Compass = serial.Serial(
-            port=PORT_NAME, 
-            timeout=1, 
-            baudrate=4800, 
+            port=COMPASS_PORT, 
+            timeout=COMPASS_TIMEOUT, 
+            baudrate=COMPASS_BAUDRATE, 
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE, 
             stopbits=serial.STOPBITS_ONE
         )
-        print(f"Compass reader đã khởi động thành công trên {PORT_NAME}")
+        print(f"Compass reader đã khởi động thành công trên {COMPASS_PORT}")
         
         # Ghi log thành công
         try:
             from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"Compass reader đã khởi động thành công trên {PORT_NAME}", "SUCCESS")
+            LogTab.log(f"Compass reader đã khởi động thành công trên {COMPASS_PORT}", "SUCCESS")
         except:
             pass
         
@@ -199,7 +210,7 @@ def compass_reader_thread():
                 print(f"Compass: {data_CP:.2f}°")
                 
     except serial.SerialException as e:
-        error_msg = f"Lỗi Compass: Không thể mở {PORT_NAME}. Compass reader sẽ không hoạt động. Chi tiết: {e}"
+        error_msg = f"Lỗi Compass: Không thể mở {COMPASS_PORT}. Compass reader sẽ không hoạt động. Chi tiết: {e}"
         print(error_msg)
         try:
             from ui.tabs.event_log_tab import LogTab
@@ -230,7 +241,7 @@ def parse_module_data_from_can(msg):
     Parse CAN message để lấy thông số module.
     
     CAN Protocol:
-    - CAN ID: 0x300 + node_index (0x300-0x32F)
+    - CAN ID: CAN_ID_MODULE_DATA_START + node_index (0x300-0x32F)
     - Data format (8 bytes):
       [0]: Module index (0-255)
       [1-2]: Voltage (uint16, scale 0.01V → 0-655.35V)
@@ -242,8 +253,8 @@ def parse_module_data_from_can(msg):
         tuple: (node_id, module_index, voltage, current, power, temperature) hoặc None nếu invalid
     """
     try:
-        # Check if CAN ID is in module data range (0x300-0x32F)
-        if msg.arbitration_id < 0x300 or msg.arbitration_id > 0x32F:
+        # Check if CAN ID is in module data range
+        if not is_module_data_id(msg.arbitration_id):
             return None
         
         # Check data length
@@ -252,7 +263,7 @@ def parse_module_data_from_can(msg):
             return None
         
         # Extract node index from CAN ID
-        node_index = msg.arbitration_id - 0x300
+        node_index = msg.arbitration_id - CAN_ID_MODULE_DATA_START
         
         # Parse data
         module_index = msg.data[0]
@@ -335,17 +346,17 @@ def run():
     compass_thread.start()
     
     try:
-        bus = can.interface.Bus(channel='can0', bustype='socketcan')
-        print("Listening on can0...")
+        bus = can.interface.Bus(channel=CAN_CHANNEL, bustype=CAN_BUSTYPE, bitrate=CAN_BITRATE)
+        print(f"Listening on {CAN_CHANNEL}...")
         # Ghi log thành công
         try:
             from ui.tabs.event_log_tab import LogTab
-            LogTab.log("CAN receiver đã khởi động thành công trên can0", "SUCCESS")
+            LogTab.log(f"CAN receiver đã khởi động thành công trên {CAN_CHANNEL}", "SUCCESS")
         except:
             pass
     except OSError as e:
         if e.errno == 19:  # No such device
-            error_msg = "Lỗi CAN: Không tìm thấy thiết bị 'can0'. CAN receiver sẽ không hoạt động."
+            error_msg = f"Lỗi CAN: Không tìm thấy thiết bị '{CAN_CHANNEL}'. CAN receiver sẽ không hoạt động."
             print(error_msg)
             # Ghi log vào event log
             try:
@@ -392,40 +403,40 @@ def run():
                     pass
                 continue  # Skip other processing for module data messages
             
-            if msg.arbitration_id == 0x100:
+            if msg.arbitration_id == CAN_ID_DISTANCE:
                 if len(msg.data) == 4:
                     (distance_tmp,) = struct.unpack("<f", msg.data)
                     if distance_tmp > 0:
                         distance = distance_tmp
-                    print(f"Received: ID=0x100, Distance: {distance:.2f} km")
+                    print(f"Received: ID=0x{CAN_ID_DISTANCE:X}, Distance: {distance:.2f} km")
                     # Log vào lịch sử
                     try:
                         from ui.tabs.event_log_tab import LogTab
-                        LogTab.log(f"Nhận CAN data - ID=0x100: Khoảng cách = {distance:.2f} km", "INFO")
+                        LogTab.log(f"Nhận CAN data - ID=0x{CAN_ID_DISTANCE:X}: Khoảng cách = {distance:.2f} km", "INFO")
                     except:
                         pass
                 else:
-                    print(f"Lỗi: ID=0x100, nhận {len(msg.data)} bytes, cần 4 bytes")
+                    print(f"Lỗi: ID=0x{CAN_ID_DISTANCE:X}, nhận {len(msg.data)} bytes, cần 4 bytes")
                     try:
                         from ui.tabs.event_log_tab import LogTab
-                        LogTab.log(f"Lỗi CAN data - ID=0x100: nhận {len(msg.data)} bytes, cần 4 bytes", "ERROR")
+                        LogTab.log(f"Lỗi CAN data - ID=0x{CAN_ID_DISTANCE:X}: nhận {len(msg.data)} bytes, cần 4 bytes", "ERROR")
                     except:
                         pass
-            if msg.arbitration_id == 0x102:
+            if msg.arbitration_id == CAN_ID_DIRECTION:
                 if len(msg.data) == 4:
                     (direction,) = struct.unpack("<f", msg.data)
-                    print(f"Received: ID=0x102, Direction: {direction:.2f}°")
+                    print(f"Received: ID=0x{CAN_ID_DIRECTION:X}, Direction: {direction:.2f}°")
                     # Log vào lịch sử
                     try:
                         from ui.tabs.event_log_tab import LogTab
-                        LogTab.log(f"Nhận CAN data - ID=0x102: Hướng = {direction:.2f}°", "INFO")
+                        LogTab.log(f"Nhận CAN data - ID=0x{CAN_ID_DIRECTION:X}: Hướng = {direction:.2f}°", "INFO")
                     except:
                         pass
                 else:
-                    print(f"Lỗi: ID=0x102, nhận {len(msg.data)} bytes, cần 4 bytes")
+                    print(f"Lỗi: ID=0x{CAN_ID_DIRECTION:X}, nhận {len(msg.data)} bytes, cần 4 bytes")
                     try:
                         from ui.tabs.event_log_tab import LogTab
-                        LogTab.log(f"Lỗi CAN data - ID=0x102: nhận {len(msg.data)} bytes, cần 4 bytes", "ERROR")
+                        LogTab.log(f"Lỗi CAN data - ID=0x{CAN_ID_DIRECTION:X}: nhận {len(msg.data)} bytes, cần 4 bytes", "ERROR")
                     except:
                         pass
             
@@ -453,8 +464,7 @@ def run():
             print(f"Updated config - R ({mode_r}): dist={config.DISTANCE_R:.2f}, dir={config.DIRECTION_R:.2f}")
 
             # Nhận góc hiện tại của pháo từ CAN bus (góc từ cảm biến)
-            # TODO: Thay đổi arbitration_id theo hệ thống thực tế của bạn
-            if msg.arbitration_id == 0x200:  # Góc pháo trái
+            if msg.arbitration_id == CAN_ID_CANNON_LEFT:  # Góc pháo trái
                 if len(msg.data) == 8:
                     angle, direction = struct.unpack("<ff", msg.data)
                     config.ANGLE_L = angle  # Góc hiện tại từ cảm biến
@@ -463,11 +473,11 @@ def run():
                     # Log vào lịch sử
                     try:
                         from ui.tabs.event_log_tab import LogTab
-                        LogTab.log(f"Nhận CAN data - ID=0x200 (Pháo trái): Góc tầm={angle:.2f}°, Hướng={direction:.2f}°", "INFO")
+                        LogTab.log(f"Nhận CAN data - ID=0x{CAN_ID_CANNON_LEFT:X} (Pháo trái): Góc tầm={angle:.2f}°, Hướng={direction:.2f}°", "INFO")
                     except:
                         pass
             
-            if msg.arbitration_id == 0x201:  # Góc pháo phải
+            if msg.arbitration_id == CAN_ID_CANNON_RIGHT:  # Góc pháo phải
                 if len(msg.data) == 8:
                     angle, direction = struct.unpack("<ff", msg.data)
                     config.ANGLE_R = angle  # Góc hiện tại từ cảm biến
@@ -476,11 +486,11 @@ def run():
                     # Log vào lịch sử
                     try:
                         from ui.tabs.event_log_tab import LogTab
-                        LogTab.log(f"Nhận CAN data - ID=0x201 (Pháo phải): Góc tầm={angle:.2f}°, Hướng={direction:.2f}°", "INFO")
+                        LogTab.log(f"Nhận CAN data - ID=0x{CAN_ID_CANNON_RIGHT:X} (Pháo phải): Góc tầm={angle:.2f}°, Hướng={direction:.2f}°", "INFO")
                     except:
                         pass
 
-            if msg.arbitration_id == 0x99:
+            if msg.arbitration_id == CAN_ID_AMMO_STATUS:
                 #if can't run change msg['data'] to msg.data
                 data = msg.data
                 print(data)
@@ -489,10 +499,10 @@ def run():
                 flag2 = unpack_bits(data[3], 8)
                 flag3 = unpack_bits(data[4], 2)
                 flags = flag1 + flag2 + flag3
-                if data[1] == 0x31:
+                if data[1] == SIDE_CODE_LEFT:
                     config.AMMO_L = flags
                     side_name = "Giàn trái"
-                elif data[1] == 0x32:
+                elif data[1] == SIDE_CODE_RIGHT:
                     config.AMMO_R = flags
                     side_name = "Giàn phải"
                 else:
@@ -503,7 +513,7 @@ def run():
                 try:
                     from ui.tabs.event_log_tab import LogTab
                     ammo_count = sum(flags)
-                    LogTab.log(f"Nhận CAN data - ID=0x99 ({side_name}): Cập nhật trạng thái đạn ({ammo_count}/18 sẵn sàng)", "INFO")
+                    LogTab.log(f"Nhận CAN data - ID=0x{CAN_ID_AMMO_STATUS:X} ({side_name}): Cập nhật trạng thái đạn ({ammo_count}/18 sẵn sàng)", "INFO")
                 except:
                     pass
                         

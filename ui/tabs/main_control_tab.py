@@ -12,6 +12,7 @@ from ..widgets.angle_input_dialog import AngleInputDialog
 from ..components.ui_utilities import ColoredSVGButton
 import ui.ui_config as config
 from communication.data_sender import sender_angle_direction, sender_ammo_status
+from communication.can_config import CAN_ID_ANGLE_LEFT, CAN_ID_ANGLE_RIGHT
 import yaml
 import random
 import math
@@ -589,12 +590,12 @@ class MainTab(GridBackgroundWidget):
             current_distance = config.DISTANCE_L
             current_direction = config.DIRECTION_L
             side_text = "Trái"
-            idx = 0x01A  # ID cho giàn trái
+            idx = CAN_ID_ANGLE_LEFT  # ID cho giàn trái
         else:
             current_distance = config.DISTANCE_R
             current_direction = config.DIRECTION_R
             side_text = "Phải"
-            idx = 0x01B  # ID cho giàn phải
+            idx = CAN_ID_ANGLE_RIGHT  # ID cho giàn phải
         
         # Tạo overlay dialog nếu chưa có hoặc tạo mới
         is_left = (side == 'left')
