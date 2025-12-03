@@ -1158,7 +1158,8 @@ class AngleCompass(QWidget):
             None
         """
         painter.setPen(QPen(Qt.red, 2))
-        for angle in angles:
+        change_angle = [angles[0] + 90, 450 - angles[1]]
+        for angle in change_angle:
             angle_rad = math.radians(angle)
             # Tính toán vị trí với phép chiếu isometric 60 độ
             x_3d = radius * math.cos(angle_rad)

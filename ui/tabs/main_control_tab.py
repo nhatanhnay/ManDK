@@ -158,14 +158,14 @@ class MainTab(GridBackgroundWidget):
         # Tính toán redline limits từ CompassLeft redlines
         # redlines sử dụng góc compass (0° = Bắc/trên, tăng theo chiều kim đồng hồ)
         # Công thức: redline[0] - 90 = min_limit, 450 - redline[1] = max_limit
-        compass_left_redlines = compass_left_config.get('redlines', [150, 385])
-        left_min_limit = -(compass_left_redlines[0] - 90)  # 150 - 90 = 60, nên -60
-        left_max_limit = 450 - compass_left_redlines[1]     # 450 - 385 = 65
+        compass_left_redlines = compass_left_config.get('redlines', [])
+        left_min_limit = -compass_left_redlines[0] # 150 - 90 = 60, nên -60
+        left_max_limit = compass_left_redlines[1]     # 450 - 385 = 65
         left_redline_limits = [left_min_limit, left_max_limit]
         
         # Giới hạn cho góc tầm: làm xám các vạch ngoài khoảng [10, 60]
-        elevation_limits = [10, 60]
-        
+
+        elevation_limits = self.config['Widgets']['LimitAngles'].get('Elevation', [])
         self.half_compass_left = HalfCircleWidget(15, 20, self, 
                                                    redline_limits=left_redline_limits,
                                                    elevation_limits=elevation_limits)
@@ -232,12 +232,12 @@ class MainTab(GridBackgroundWidget):
         # redlines sử dụng góc compass (0° = Bắc/trên, tăng theo chiều kim đồng hồ)
         # Công thức: redline[0] - 90 = min_limit, 450 - redline[1] = max_limit
         compass_right_redlines = compass_right_config.get('redlines', [155, 390])
-        right_min_limit = -(compass_right_redlines[0] - 90)  # 155 - 90 = 65, nên -65
-        right_max_limit = 450 - compass_right_redlines[1]    # 450 - 390 = 60
+        right_min_limit = -compass_right_redlines[0]  # 155 - 90 = 65, nên -65
+        right_max_limit = compass_right_redlines[1]    # 450 - 390 = 60
         right_redline_limits = [right_min_limit, right_max_limit]
         
         # Giới hạn cho góc tầm: làm xám các vạch ngoài khoảng [10, 60]
-        elevation_limits = [10, 60]
+        elevation_limits = self.config['Widgets']['LimitAngles'].get('Elevation', [])
         
         self.half_compass_right = HalfCircleWidget(30, 25, self, 
                                                     redline_limits=right_redline_limits,
