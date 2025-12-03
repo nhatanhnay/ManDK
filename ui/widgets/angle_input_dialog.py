@@ -158,6 +158,27 @@ class AngleInputDialog(QWidget):
         
         # Group box cho góc tầm preview với 2 ô
         self.elevation_preview_group = QGroupBox("Góc tầm tính toán")
+        self.elevation_preview_group.setStyleSheet("""
+            QGroupBox {
+                border: 2px solid #444;
+                border-radius: 8px;
+                margin-top: 15px;
+                font-weight: bold;
+                font-size: 13px;
+                padding-top: 15px;
+                padding-bottom: 10px;
+                padding-left: 10px;
+                padding-right: 10px;
+                color: #cccccc;
+                background-color: transparent;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: #ffffff;
+            }
+        """)
         elevation_preview_layout = QHBoxLayout()
         elevation_preview_layout.setSpacing(15)
         
@@ -172,8 +193,8 @@ class AngleInputDialog(QWidget):
                 color: #ffffff;
                 font-size: 13px;
                 font-weight: bold;
-                background-color: #444444;
-                border: 2px solid #00aa00;
+                background-color: #333333;
+                border: 2px solid #0078d4;
                 border-bottom: none;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
@@ -188,9 +209,9 @@ class AngleInputDialog(QWidget):
         self.elevation_decimal_label.setMinimumHeight(60)
         self.elevation_decimal_label.setStyleSheet("""
             QLabel {
-                background-color: #2a2a2a;
-                color: #00ff00;
-                border: 2px solid #00aa00;
+                background-color: #1a1a1a;
+                color: #0078d4;
+                border: 2px solid #0078d4;
                 border-top: none;
                 border-top-left-radius: 0px;
                 border-top-right-radius: 0px;
@@ -216,8 +237,8 @@ class AngleInputDialog(QWidget):
                 color: #ffffff;
                 font-size: 13px;
                 font-weight: bold;
-                background-color: #444444;
-                border: 2px solid #00aa00;
+                background-color: #333333;
+                border: 2px solid #0078d4;
                 border-bottom: none;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
@@ -232,9 +253,9 @@ class AngleInputDialog(QWidget):
         self.elevation_dms_label.setMinimumHeight(60)
         self.elevation_dms_label.setStyleSheet("""
             QLabel {
-                background-color: #2a2a2a;
-                color: #00ff00;
-                border: 2px solid #00aa00;
+                background-color: #1a1a1a;
+                color: #0078d4;
+                border: 2px solid #0078d4;
                 border-top: none;
                 border-top-left-radius: 0px;
                 border-top-right-radius: 0px;
@@ -495,10 +516,10 @@ class AngleInputDialog(QWidget):
             }
         """)
         
-        # Style cho nút Xác nhận (màu xanh lá)
+        # Style cho nút Xác nhận (màu xanh dương)
         self.ok_button.setStyleSheet("""
             QPushButton {
-                background-color: #28a745;
+                background-color: #0078d4;
                 color: white;
                 border: none;
                 border-radius: 5px;
@@ -508,10 +529,32 @@ class AngleInputDialog(QWidget):
                 min-width: 80px;
             }
             QPushButton:hover {
-                background-color: #2eb84e;
+                background-color: #1084d8;
             }
             QPushButton:pressed {
-                background-color: #20873a;
+                background-color: #006bb3;
+            }
+        """)
+        
+        # Style cho nút Hủy (nền đen, viền xanh)
+        self.cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1a1a1a;
+                color: white;
+                border: 2px solid #0078d4;
+                border-radius: 5px;
+                padding: 10px 25px;
+                font-size: 13px;
+                font-weight: bold;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #2a2a2a;
+                border-color: #1084d8;
+            }
+            QPushButton:pressed {
+                background-color: #000000;
+                border-color: #006bb3;
             }
         """)
         
@@ -630,26 +673,20 @@ class AngleInputDialog(QWidget):
         is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
         if is_distance:
             mode_text = "Nhập: <b>Khoảng cách</b>"
-            bg_color = "#003366"
-            border_color = "#0078d4"
-            text_color = "#66b3ff"
         else:
             mode_text = "Nhập: <b>Góc tầm trực tiếp</b>"
-            bg_color = "#660033"
-            border_color = "#ff3366"
-            text_color = "#ff6699"
         
         self.input_type_label.setText(mode_text)
-        self.input_type_label.setStyleSheet(f"""
-            QLabel {{
-                color: {text_color};
+        self.input_type_label.setStyleSheet("""
+            QLabel {
+                color: #0078d4;
                 font-size: 13px;
                 font-weight: bold;
                 padding: 10px 15px;
-                background-color: {bg_color};
-                border: 2px solid {border_color};
+                background-color: #1a1a1a;
+                border: 2px solid #0078d4;
                 border-radius: 5px;
-            }}
+            }
         """)
     
     def update_input_type_button(self):
@@ -657,28 +694,26 @@ class AngleInputDialog(QWidget):
         is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
         if is_distance:
             button_text = "Chuyển sang Góc tầm"
-            button_color = "#ff3366"
         else:
             button_text = "Chuyển sang Khoảng cách"
-            button_color = "#0078d4"
         
         self.toggle_input_type_button.setText(button_text)
-        self.toggle_input_type_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {button_color};
+        self.toggle_input_type_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0078d4;
                 color: white;
                 border: none;
                 border-radius: 5px;
                 padding: 10px 20px;
                 font-size: 14px;
                 font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {button_color}dd;
-            }}
-            QPushButton:pressed {{
-                background-color: {button_color}aa;
-            }}
+            }
+            QPushButton:hover {
+                background-color: #1084d8;
+            }
+            QPushButton:pressed {
+                background-color: #006bb3;
+            }
         """)
     
     def update_input_type_ui(self):
@@ -743,19 +778,16 @@ class AngleInputDialog(QWidget):
         
         mode_text = "Chế độ: <b>Tự động</b>" if is_auto else "Chế độ: <b>Thủ công</b>"
         self.mode_label.setText(mode_text)
-        bg_color = "#004400" if is_auto else "#443300"
-        border_color = "#00ff00" if is_auto else "#ffaa00"
-        text_color = "#00ff00" if is_auto else "#ffaa00"
-        self.mode_label.setStyleSheet(f"""
-            QLabel {{
-                color: {text_color};
+        self.mode_label.setStyleSheet("""
+            QLabel {
+                color: #0078d4;
                 font-size: 13px;
                 font-weight: bold;
                 padding: 10px 15px;
-                background-color: {bg_color};
-                border: 2px solid {border_color};
+                background-color: #1a1a1a;
+                border: 2px solid #0078d4;
                 border-radius: 5px;
-            }}
+            }
         """)
         
         # Vô hiệu hóa/kích hoạt ô nhập dựa trên chế độ
@@ -775,23 +807,22 @@ class AngleInputDialog(QWidget):
         button_text = "Chuyển sang Thủ công" if is_auto else "Chuyển sang Tự động"
         self.toggle_mode_button.setText(button_text)
         
-        button_color = "#ff6600" if is_auto else "#00aa00"
-        self.toggle_mode_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {button_color};
+        self.toggle_mode_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0078d4;
                 color: white;
                 border: none;
                 border-radius: 5px;
                 padding: 10px 20px;
                 font-size: 14px;
                 font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {button_color}dd;
-            }}
-            QPushButton:pressed {{
-                background-color: {button_color}aa;
-            }}
+            }
+            QPushButton:hover {
+                background-color: #1084d8;
+            }
+            QPushButton:pressed {
+                background-color: #006bb3;
+            }
         """)
         
     def update_direction_mode_label(self):
@@ -799,19 +830,16 @@ class AngleInputDialog(QWidget):
         is_auto = config.DIRECTION_MODE_AUTO_L if self.is_left_side else config.DIRECTION_MODE_AUTO_R
         mode_text = "Chế độ: <b>Tự động</b>" if is_auto else "Chế độ: <b>Thủ công</b>"
         self.direction_mode_label.setText(mode_text)
-        bg_color = "#004400" if is_auto else "#443300"
-        border_color = "#00ff00" if is_auto else "#ffaa00"
-        text_color = "#00ff00" if is_auto else "#ffaa00"
-        self.direction_mode_label.setStyleSheet(f"""
-            QLabel {{
-                color: {text_color};
+        self.direction_mode_label.setStyleSheet("""
+            QLabel {
+                color: #0078d4;
                 font-size: 13px;
                 font-weight: bold;
                 padding: 10px 15px;
-                background-color: {bg_color};
-                border: 2px solid {border_color};
+                background-color: #1a1a1a;
+                border: 2px solid #0078d4;
                 border-radius: 5px;
-            }}
+            }
         """)
         
         # Vô hiệu hóa/kích hoạt ô nhập góc hướng dựa trên chế độ
@@ -823,23 +851,22 @@ class AngleInputDialog(QWidget):
         button_text = "Chuyển sang Thủ công" if is_auto else "Chuyển sang Tự động"
         self.toggle_direction_mode_button.setText(button_text)
         
-        button_color = "#ff6600" if is_auto else "#00aa00"
-        self.toggle_direction_mode_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {button_color};
+        self.toggle_direction_mode_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0078d4;
                 color: white;
                 border: none;
                 border-radius: 5px;
                 padding: 10px 20px;
                 font-size: 14px;
                 font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {button_color}dd;
-            }}
-            QPushButton:pressed {{
-                background-color: {button_color}aa;
-            }}
+            }
+            QPushButton:hover {
+                background-color: #1084d8;
+            }
+            QPushButton:pressed {
+                background-color: #006bb3;
+            }
         """)
     
     def accept(self):

@@ -6,7 +6,7 @@ from ..widgets.compass_widget import AngleCompass
 from ..widgets.half_compass_widget import HalfCircleWidget
 from ..widgets.numeric_display_widget import NumericDataWidget
 from ..widgets.ammunition_widget import BulletWidget
-from ..widgets.custom_message_box_widget import CustomMessageBox
+from ..widgets.custom_message_box_widget import CustomMessageBox, ConfirmationWidget
 from ..widgets.ballistic_calculator_dialog import BallisticCalculatorWidget
 from ..widgets.angle_input_dialog import AngleInputDialog
 from ..components.ui_utilities import ColoredSVGButton
@@ -423,81 +423,99 @@ class MainTab(GridBackgroundWidget):
             LogTab.log("Chưa chọn ống phóng nào!", "WARNING")
             return
 
-        # Hiển thị message box xác nhận
+        # Hiển thị widget xác nhận thay vì popup
         selected_count = len(left_selected) + len(right_selected)
-        if CustomMessageBox.question(
+        
+        # Tạo confirmation widget nếu chưa có
+        if not hasattr(self, 'confirmation_widget'):
+            self.confirmation_widget = ConfirmationWidget(parent=self)
+            self.confirmation_widget.setGeometry(0, 34, self.width(), self.height() - 34)
+            self.confirmation_widget.confirmed.connect(self._execute_launch)
+            self.confirmation_widget.cancelled.connect(self._cancel_launch)
+        
+        # Cập nhật geometry và hiển thị
+        self.confirmation_widget.setGeometry(0, 34, self.width(), self.height() - 34)
+        self.confirmation_widget.show_confirmation(
             "Xác nhận phóng",
-            f"Bạn có chắc chắn muốn phóng {selected_count} ống đã chọn?"
-        ) == QMessageBox.Yes:
-            # Cập nhật trạng thái các ống phóng đã chọn thành không sẵn sàng
-            new_left_status = self.bullet_widget.left_launcher_status.copy()
-            new_right_status = self.bullet_widget.right_launcher_status.copy()
+            f"Bạn có chắc chắn phóng {selected_count} ống đã chọn?"
+        )
+    
+    def _execute_launch(self):
+        """Thực hiện phóng sau khi xác nhận."""
+        left_selected = self.bullet_widget.left_selected_launchers.copy()
+        right_selected = self.bullet_widget.right_selected_launchers.copy()
+        selected_count = len(left_selected) + len(right_selected)
+        
+        # Cập nhật trạng thái các ống phóng đã chọn thành không sẵn sàng
+        # new_left_status = self.bullet_widget.left_launcher_status.copy()
+        # new_right_status = self.bullet_widget.right_launcher_status.copy()
+        
+        # for idx in left_selected:
+        #     new_left_status[idx-1] = False
+        # for idx in right_selected:
+        #     new_right_status[idx-1] = False
             
-            for idx in left_selected:
-                new_left_status[idx-1] = False
-            for idx in right_selected:
-                new_right_status[idx-1] = False
+        # Cập nhật trạng thái
+        # self.bullet_widget._update_launcher_status("Giàn trái", new_left_status)
+        # self.bullet_widget._update_launcher_status("Giàn phải", new_right_status)
+        # config.AMMO_L = new_left_status
+        # config.AMMO_R = new_right_status
+        
+        # Gửi lệnh qua CAN bus và kiểm tra kết quả
+        can_success = True
+        failed_can_data = []
+        
+        if len(left_selected) > 0:
+            # Tạo CAN data cho giàn trái
+            flags = [0]*18
+            for i in left_selected:
+                flags[i-1] = 1
+            flag1 = int(''.join(str(b) for b in flags[:8][::-1]), 2)
+            flag2 = int(''.join(str(b) for b in flags[8:16][::-1]), 2)
+            flag3 = int(''.join(str(b) for b in flags[16:][::-1]), 2)
+            can_data_left = [0x31, 0x31, flag1, flag2, flag3, 0x11]
+            can_data_left_hex = ' '.join([f'0x{byte:02X}' for byte in can_data_left])
+            
+            if not sender_ammo_status(0x31, left_selected):
+                can_success = False
+                failed_can_data.append(f"Giàn trái: [{can_data_left_hex}]")
                 
-            # Cập nhật trạng thái
-            self.bullet_widget._update_launcher_status("Giàn trái", new_left_status)
-            self.bullet_widget._update_launcher_status("Giàn phải", new_right_status)
-            config.AMMO_L = new_left_status
-            config.AMMO_R = new_right_status
+        if len(right_selected) > 0:
+            # Tạo CAN data cho giàn phải
+            flags = [0]*18
+            for i in right_selected:
+                flags[i-1] = 1
+            flag1 = int(''.join(str(b) for b in flags[:8][::-1]), 2)
+            flag2 = int(''.join(str(b) for b in flags[8:16][::-1]), 2)
+            flag3 = int(''.join(str(b) for b in flags[16:][::-1]), 2)
+            can_data_right = [0x31, 0x32, flag1, flag2, flag3, 0x11]
+            can_data_right_hex = ' '.join([f'0x{byte:02X}' for byte in can_data_right])
             
-            # Gửi lệnh qua CAN bus và kiểm tra kết quả
-            can_success = True
-            failed_can_data = []
-            
-            if len(left_selected) > 0:
-                # Tạo CAN data cho giàn trái
-                flags = [0]*18
-                for i in left_selected:
-                    flags[i-1] = 1
-                flag1 = int(''.join(str(b) for b in flags[:8][::-1]), 2)
-                flag2 = int(''.join(str(b) for b in flags[8:16][::-1]), 2)
-                flag3 = int(''.join(str(b) for b in flags[16:][::-1]), 2)
-                can_data_left = [0x31, 0x31, flag1, flag2, flag3, 0x11]
-                can_data_left_hex = ' '.join([f'0x{byte:02X}' for byte in can_data_left])
-                
-                if not sender_ammo_status(0x31, left_selected):
-                    can_success = False
-                    failed_can_data.append(f"Giàn trái: [{can_data_left_hex}]")
-                    
-            if len(right_selected) > 0:
-                # Tạo CAN data cho giàn phải
-                flags = [0]*18
-                for i in right_selected:
-                    flags[i-1] = 1
-                flag1 = int(''.join(str(b) for b in flags[:8][::-1]), 2)
-                flag2 = int(''.join(str(b) for b in flags[8:16][::-1]), 2)
-                flag3 = int(''.join(str(b) for b in flags[16:][::-1]), 2)
-                can_data_right = [0x31, 0x32, flag1, flag2, flag3, 0x11]
-                can_data_right_hex = ' '.join([f'0x{byte:02X}' for byte in can_data_right])
-                
-                if not sender_ammo_status(0x32, right_selected):
-                    can_success = False
-                    failed_can_data.append(f"Giàn phải: [{can_data_right_hex}]")
-            
-            # Ghi log và thông báo kết quả
-            from ui.tabs.event_log_tab import LogTab
-            
-            if can_success:
-                success_msg = f"Đã phóng thành công {selected_count} ống (Trái: {len(left_selected)}, Phải: {len(right_selected)})"
-                LogTab.log(success_msg, "SUCCESS")
-                # Bỏ popup, chỉ log
-            else:
-                failed_data_str = " | ".join(failed_can_data)
-                warning_msg = f"Đã cập nhật trạng thái {selected_count} ống nhưng không thể gửi lệnh qua CAN bus - CAN Data: {failed_data_str} - ID: 0x29"
-                LogTab.log(warning_msg, "WARNING")
-                # Bỏ popup, chỉ log
-            
-            # Cập nhật trạng thái nút sau khi phóng
-            self._update_action_buttons_state()
+            if not sender_ammo_status(0x32, right_selected):
+                can_success = False
+                failed_can_data.append(f"Giàn phải: [{can_data_right_hex}]")
+        
+        # Ghi log và thông báo kết quả
+        from ui.tabs.event_log_tab import LogTab
+        
+        if can_success:
+            success_msg = f"Đã phóng thành công {selected_count} ống (Trái: {len(left_selected)}, Phải: {len(right_selected)})"
+            LogTab.log(success_msg, "SUCCESS")
         else:
-            from ui.tabs.event_log_tab import LogTab
-            LogTab.log("Đã hủy phóng!", "INFO")
-            # Bỏ popup, chỉ log
-            self.on_cancel_button_clicked()
+            failed_data_str = " | ".join(failed_can_data)
+            warning_msg = f"Đã cập nhật trạng thái {selected_count} ống nhưng không thể gửi lệnh qua CAN bus - CAN Data: {failed_data_str} - ID: 0x29"
+            LogTab.log(warning_msg, "WARNING")
+        
+        # Xóa danh sách đã chọn và cập nhật trạng thái nút sau khi phóng
+        # self.bullet_widget.left_selected_launchers.clear()
+        # self.bullet_widget.right_selected_launchers.clear()
+        # self._update_action_buttons_state()
+    
+    def _cancel_launch(self):
+        """Xử lý khi hủy phóng từ confirmation widget."""
+        from ui.tabs.event_log_tab import LogTab
+        LogTab.log("Đã hủy phóng!", "INFO")
+        self.on_cancel_button_clicked()
 
     def on_cancel_button_clicked(self):
         """Xử lý sự kiện khi nhấn nút Cancel."""
