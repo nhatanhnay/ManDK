@@ -35,3 +35,7 @@ DIRECTION_MODE_AUTO_R = True  # Chế độ tự động cho giàn phải
 # Chế độ nhập góc tầm (True = Tính từ khoảng cách, False = Nhập trực tiếp góc tầm)
 ELEVATION_INPUT_FROM_DISTANCE_L = True  # Giàn trái: True = nhập khoảng cách, False = nhập góc tầm trực tiếp
 ELEVATION_INPUT_FROM_DISTANCE_R = True  # Giàn phải: True = nhập khoảng cách, False = nhập góc tầm trực tiếp
+
+# Chế độ nhập góc tầm trực tiếp (True = Tự động từ CAN, False = Thủ công)
+ELEVATION_MODE_AUTO_L = True  # Chế độ tự động cho giàn trái
+ELEVATION_MODE_AUTO_R = True  # Chế độ tự động cho giàn phải

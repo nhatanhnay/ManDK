@@ -596,10 +596,20 @@ class AngleInputDialog(QWidget):
     
     def toggle_distance_mode(self):
         """Chuyển đổi giữa chế độ tự động và thủ công."""
-        if self.is_left_side:
-            config.DISTANCE_MODE_AUTO_L = not config.DISTANCE_MODE_AUTO_L
+        is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
+        
+        if is_distance:
+            # Đang ở chế độ nhập khoảng cách -> toggle DISTANCE_MODE_AUTO
+            if self.is_left_side:
+                config.DISTANCE_MODE_AUTO_L = not config.DISTANCE_MODE_AUTO_L
+            else:
+                config.DISTANCE_MODE_AUTO_R = not config.DISTANCE_MODE_AUTO_R
         else:
-            config.DISTANCE_MODE_AUTO_R = not config.DISTANCE_MODE_AUTO_R
+            # Đang ở chế độ nhập góc tầm trực tiếp -> toggle ELEVATION_MODE_AUTO
+            if self.is_left_side:
+                config.ELEVATION_MODE_AUTO_L = not config.ELEVATION_MODE_AUTO_L
+            else:
+                config.ELEVATION_MODE_AUTO_R = not config.ELEVATION_MODE_AUTO_R
         
         self.update_mode_label()
         self.update_mode_button()
@@ -689,17 +699,22 @@ class AngleInputDialog(QWidget):
             is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
             self.distance_input.setEnabled(not is_auto)
         else:
-            # Chế độ nhập góc tầm trực tiếp - luôn là thủ công
+            # Chế độ nhập góc tầm trực tiếp
             self.distance_group.setTitle("Góc tầm (độ)")
             self.distance_input.setPlaceholderText(f"Nhập góc tầm ({self.elevation_min} -> {self.elevation_max})")
             self.distance_input.setValidator(self.elevation_validator)
-            # Khi chuyển sang góc tầm, hiển thị giá trị góc tầm hiện tại nếu có
+            # Khi chuyển sang góc tầm, xóa text để hiện placeholder
             self.distance_input.setText("")
             self.elevation_preview_group.setVisible(False)
-            # Ẩn phần chọn chế độ tự động/thủ công vì nhập góc tầm luôn là thủ công
-            self.mode_button_container.setVisible(False)
-            # Luôn kích hoạt ô nhập khi nhập góc tầm trực tiếp
-            self.distance_input.setEnabled(True)
+            # Hiển thị phần chọn chế độ tự động/thủ công cho góc tầm
+            self.mode_button_container.setVisible(True)
+            # Kích hoạt/vô hiệu hóa ô nhập dựa trên chế độ tự động/thủ công của góc tầm
+            is_auto = config.ELEVATION_MODE_AUTO_L if self.is_left_side else config.ELEVATION_MODE_AUTO_R
+            self.distance_input.setEnabled(not is_auto)
+        
+        # Cập nhật label và button mode
+        self.update_mode_label()
+        self.update_mode_button()
         
         # Cập nhật lại preview nếu đang ở chế độ khoảng cách
         if is_distance:
@@ -717,7 +732,15 @@ class AngleInputDialog(QWidget):
         
     def update_mode_label(self):
         """Cập nhật label hiển thị chế độ hiện tại."""
-        is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
+        is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
+        
+        if is_distance:
+            # Chế độ nhập khoảng cách
+            is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
+        else:
+            # Chế độ nhập góc tầm trực tiếp
+            is_auto = config.ELEVATION_MODE_AUTO_L if self.is_left_side else config.ELEVATION_MODE_AUTO_R
+        
         mode_text = "Chế độ: <b>Tự động</b>" if is_auto else "Chế độ: <b>Thủ công</b>"
         self.mode_label.setText(mode_text)
         bg_color = "#004400" if is_auto else "#443300"
@@ -735,12 +758,20 @@ class AngleInputDialog(QWidget):
             }}
         """)
         
-        # Vô hiệu hóa/kích hoạt ô nhập khoảng cách dựa trên chế độ
+        # Vô hiệu hóa/kích hoạt ô nhập dựa trên chế độ
         self.distance_input.setEnabled(not is_auto)
         
     def update_mode_button(self):
         """Cập nhật text và style của nút chuyển chế độ."""
-        is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
+        is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
+        
+        if is_distance:
+            # Chế độ nhập khoảng cách
+            is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
+        else:
+            # Chế độ nhập góc tầm trực tiếp
+            is_auto = config.ELEVATION_MODE_AUTO_L if self.is_left_side else config.ELEVATION_MODE_AUTO_R
+        
         button_text = "Chuyển sang Thủ công" if is_auto else "Chuyển sang Tự động"
         self.toggle_mode_button.setText(button_text)
         
@@ -834,15 +865,38 @@ class AngleInputDialog(QWidget):
         try:
             is_direct_elevation = not (config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R)
             
-            input_value = float(self.distance_input.text()) if self.distance_input.text() else 0
-            direction = float(self.direction_input.text()) if self.direction_input.text() else self.direction_value
-            
+            # Lấy giá trị input (khoảng cách hoặc góc tầm)
             if is_direct_elevation:
-                # Đang nhập góc tầm trực tiếp - clamp theo giới hạn từ config
+                # Chế độ nhập góc tầm trực tiếp
+                is_auto = config.ELEVATION_MODE_AUTO_L if self.is_left_side else config.ELEVATION_MODE_AUTO_R
+                if is_auto:
+                    # Chế độ tự động - lấy giá trị góc tầm hiện tại từ CAN
+                    input_value = config.ANGLE_L if self.is_left_side else config.ANGLE_R
+                else:
+                    # Chế độ thủ công - lấy từ ô nhập
+                    input_value = float(self.distance_input.text()) if self.distance_input.text() else 0
+                # Clamp theo giới hạn từ config
                 input_value = max(float(self.elevation_min), min(float(self.elevation_max), input_value))
             else:
-                # Đang nhập khoảng cách
+                # Chế độ nhập khoảng cách
+                is_auto = config.DISTANCE_MODE_AUTO_L if self.is_left_side else config.DISTANCE_MODE_AUTO_R
+                if is_auto:
+                    # Chế độ tự động - lấy giá trị khoảng cách hiện tại từ CAN
+                    input_value = config.DISTANCE_L if self.is_left_side else config.DISTANCE_R
+                else:
+                    # Chế độ thủ công - lấy từ ô nhập
+                    input_value = float(self.distance_input.text()) if self.distance_input.text() else 0
+                # Clamp theo giới hạn
                 input_value = max(0.0, min(10000.0, input_value))
+            
+            # Lấy giá trị góc hướng
+            is_direction_auto = config.DIRECTION_MODE_AUTO_L if self.is_left_side else config.DIRECTION_MODE_AUTO_R
+            if is_direction_auto:
+                # Chế độ tự động - lấy giá trị góc hướng hiện tại từ CAN
+                direction = config.DIRECTION_L if self.is_left_side else config.DIRECTION_R
+            else:
+                # Chế độ thủ công - lấy từ ô nhập
+                direction = float(self.direction_input.text()) if self.direction_input.text() else self.direction_value
             
             # Clamp góc hướng theo giới hạn từ config
             direction = max(-float(self.direction_neg_limit), min(float(self.direction_pos_limit), direction))

@@ -845,11 +845,15 @@ class MainTab(GridBackgroundWidget):
         và góc tính toán từ hệ thống điều khiển bắn.
         """
         # Tính toán góc tầm MỤC TIÊU liên tục từ khoảng cách hiện tại
+        # Chỉ cập nhật khi đang ở chế độ nhập khoảng cách (không nhập góc tầm trực tiếp)
         interpolator = get_firing_table_interpolator()
         if interpolator:
             # AIM_ANGLE = góc mục tiêu (từ nội suy bảng bắn)
-            config.AIM_ANGLE_L = interpolator.interpolate_angle(config.DISTANCE_L)
-            config.AIM_ANGLE_R = interpolator.interpolate_angle(config.DISTANCE_R)
+            # Chỉ cập nhật tự động khi đang ở chế độ nhập khoảng cách
+            if config.ELEVATION_INPUT_FROM_DISTANCE_L:
+                config.AIM_ANGLE_L = interpolator.interpolate_angle(config.DISTANCE_L)
+            if config.ELEVATION_INPUT_FROM_DISTANCE_R:
+                config.AIM_ANGLE_R = interpolator.interpolate_angle(config.DISTANCE_R)
             # AIM_DIRECTION_L/R = hướng mục tiêu (được set từ targeting hoặc ballistic calculator)
             # KHÔNG tự động cập nhật ở đây - chỉ được set khi có tính toán mục tiêu
             # ANGLE_L/R và DIRECTION_L/R = góc/hướng HIỆN TẠI từ cảm biến (CAN bus)
