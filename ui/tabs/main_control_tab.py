@@ -608,20 +608,27 @@ class MainTab(GridBackgroundWidget):
             # Cập nhật giá trị hiện tại
             self.angle_input_dialog.side = side_text
             self.angle_input_dialog.is_left_side = is_left
+            # Tải lại giới hạn và cập nhật validator khi chuyển bên
+            self.angle_input_dialog.reload_limits_for_side()
             self.angle_input_dialog.distance_value = current_distance
             self.angle_input_dialog.direction_value = current_direction
-            # Chỉ set text nếu giá trị khác 0, nếu không để placeholder hiển thị
+            
+            # Luôn cập nhật lại text để hiển thị đúng giá trị của bên hiện tại
+            # Xóa text cũ trước để tránh bị giữ lại giá trị của bên kia
+            self.angle_input_dialog.distance_input.clear()
+            self.angle_input_dialog.direction_input.clear()
+            
+            # Set lại giá trị của bên hiện tại (nếu khác 0)
             if current_distance != 0:
                 self.angle_input_dialog.distance_input.setText(str(current_distance))
-            else:
-                self.angle_input_dialog.distance_input.clear()
             if current_direction != 0:
                 self.angle_input_dialog.direction_input.setText(str(current_direction))
-            else:
-                self.angle_input_dialog.direction_input.clear()
+            
             # Cập nhật label và button chế độ
             self.angle_input_dialog.update_mode_label()
             self.angle_input_dialog.update_mode_button()
+            self.angle_input_dialog.update_direction_mode_label()
+            self.angle_input_dialog.update_direction_mode_button()
             # Cập nhật title
             title_label = self.angle_input_dialog.findChild(QLabel)
             if title_label and "Nhập góc" in title_label.text():

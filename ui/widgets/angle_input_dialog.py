@@ -62,6 +62,28 @@ class AngleInputDialog(QWidget):
             self.elevation_max = 60
             self.direction_neg_limit = 60
             self.direction_pos_limit = 65
+    
+    def reload_limits_for_side(self):
+        """Tải lại giới hạn khi chuyển đổi giữa giàn trái/phải."""
+        # Tải lại giới hạn từ config
+        self._load_limits_from_config()
+        
+        # Cập nhật validator cho góc hướng với giới hạn mới
+        direction_validator = QDoubleValidator(-float(self.direction_neg_limit), float(self.direction_pos_limit), 1)
+        direction_validator.setNotation(QDoubleValidator.StandardNotation)
+        self.direction_input.setValidator(direction_validator)
+        
+        # Cập nhật placeholder cho góc hướng
+        self.direction_input.setPlaceholderText(f"Nhập góc hướng (-{self.direction_neg_limit} -> {self.direction_pos_limit})")
+        
+        # Cập nhật validator cho góc tầm
+        self.elevation_validator = QDoubleValidator(float(self.elevation_min), float(self.elevation_max), 2)
+        self.elevation_validator.setNotation(QDoubleValidator.StandardNotation)
+        
+        # Cập nhật placeholder cho góc tầm nếu đang ở chế độ nhập góc tầm
+        is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
+        if not is_distance:
+            self.distance_input.setPlaceholderText(f"Nhập góc tầm ({self.elevation_min} -> {self.elevation_max})")
         
     def paintEvent(self, event):
         """Vẽ background semi-transparent cho overlay."""
