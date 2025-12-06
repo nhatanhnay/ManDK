@@ -742,12 +742,18 @@ class AngleInputDialog(QWidget):
         """Cập nhật giao diện dựa trên kiểu nhập (khoảng cách hay góc tầm)."""
         is_distance = config.ELEVATION_INPUT_FROM_DISTANCE_L if self.is_left_side else config.ELEVATION_INPUT_FROM_DISTANCE_R
         
+        # Xóa text cũ trước khi chuyển đổi
+        self.distance_input.clear()
+        
         if is_distance:
             # Chế độ nhập khoảng cách
             self.distance_group.setTitle("Khoảng cách (m)")
             self.distance_input.setPlaceholderText("Nhập khoảng cách (0 -> 10000)")
             self.distance_input.setValidator(self.distance_validator)
-            self.distance_input.setText(str(self.distance_value))
+            # Chỉ hiển thị giá trị khoảng cách nếu khác 0
+            current_distance = config.DISTANCE_L if self.is_left_side else config.DISTANCE_R
+            if current_distance != 0:
+                self.distance_input.setText(str(current_distance))
             self.elevation_preview_group.setVisible(True)
             self.elevation_preview_group.setTitle("Góc tầm tính toán")
             # Hiển thị phần chọn chế độ tự động/thủ công
@@ -760,8 +766,10 @@ class AngleInputDialog(QWidget):
             self.distance_group.setTitle("Góc tầm (độ)")
             self.distance_input.setPlaceholderText(f"Nhập góc tầm ({self.elevation_min} -> {self.elevation_max})")
             self.distance_input.setValidator(self.elevation_validator)
-            # Khi chuyển sang góc tầm, xóa text để hiện placeholder
-            self.distance_input.setText("")
+            # Hiển thị góc tầm hiện tại nếu khác 0
+            current_elevation = config.ANGLE_L if self.is_left_side else config.ANGLE_R
+            if current_elevation != 0:
+                self.distance_input.setText(str(current_elevation))
             self.elevation_preview_group.setVisible(False)
             # Hiển thị phần chọn chế độ tự động/thủ công cho góc tầm
             self.mode_button_container.setVisible(True)
