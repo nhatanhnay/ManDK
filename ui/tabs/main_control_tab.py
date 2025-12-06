@@ -613,6 +613,11 @@ class MainTab(GridBackgroundWidget):
             self.angle_input_dialog.distance_value = current_distance
             self.angle_input_dialog.direction_value = current_direction
             
+            # Cập nhật toàn bộ UI theo trạng thái của bên hiện tại (khoảng cách vs góc tầm)
+            self.angle_input_dialog.update_input_type_label()
+            self.angle_input_dialog.update_input_type_button()
+            self.angle_input_dialog.update_input_type_ui()
+            
             # Luôn cập nhật lại text để hiển thị đúng giá trị của bên hiện tại
             # Xóa text cũ trước để tránh bị giữ lại giá trị của bên kia
             self.angle_input_dialog.distance_input.clear()
@@ -624,9 +629,7 @@ class MainTab(GridBackgroundWidget):
             if current_direction != 0:
                 self.angle_input_dialog.direction_input.setText(str(current_direction))
             
-            # Cập nhật label và button chế độ
-            self.angle_input_dialog.update_mode_label()
-            self.angle_input_dialog.update_mode_button()
+            # Cập nhật label và button chế độ góc hướng
             self.angle_input_dialog.update_direction_mode_label()
             self.angle_input_dialog.update_direction_mode_button()
             # Cập nhật title
