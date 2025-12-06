@@ -28,6 +28,10 @@ READY_STATUS = True   # True = xanh (bình thường), False = đỏ (bất thư
 DISTANCE_MODE_AUTO_L = True  # Chế độ tự động cho giàn trái
 DISTANCE_MODE_AUTO_R = True  # Chế độ tự động cho giàn phải
 
+# Bảng bắn được sử dụng (True = Bảng bắn cao, False = Bảng bắn thấp)
+USE_HIGH_TABLE_L = False  # Bảng bắn cho giàn trái
+USE_HIGH_TABLE_R = False  # Bảng bắn cho giàn phải
+
 # Chế độ nhập góc hướng (True = Tự động từ CAN, False = Thủ công)
 DIRECTION_MODE_AUTO_L = True  # Chế độ tự động cho giàn trái
 DIRECTION_MODE_AUTO_R = True  # Chế độ tự động cho giàn phải

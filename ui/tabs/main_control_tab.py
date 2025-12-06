@@ -681,6 +681,12 @@ class MainTab(GridBackgroundWidget):
             # Nhập khoảng cách - tính toán góc tầm từ bảng bắn
             distance = input_value
             
+            # Lưu thông tin bảng bắn được sử dụng
+            if side == 'left':
+                config.USE_HIGH_TABLE_L = use_high_table
+            else:
+                config.USE_HIGH_TABLE_R = use_high_table
+            
             # Cập nhật khoảng cách vào config (chỉ khi ở chế độ thủ công)
             if side == 'left':
                 if not config.DISTANCE_MODE_AUTO_L:  # Chỉ cập nhật khi ở chế độ thủ công
@@ -870,18 +876,33 @@ class MainTab(GridBackgroundWidget):
         """
         # Tính toán góc tầm MỤC TIÊU liên tục từ khoảng cách hiện tại
         # Chỉ cập nhật khi đang ở chế độ nhập khoảng cách (không nhập góc tầm trực tiếp)
-        interpolator = get_firing_table_interpolator()
-        if interpolator:
-            # AIM_ANGLE = góc mục tiêu (từ nội suy bảng bắn)
-            # Chỉ cập nhật tự động khi đang ở chế độ nhập khoảng cách
-            if config.ELEVATION_INPUT_FROM_DISTANCE_L:
-                config.AIM_ANGLE_L = interpolator.interpolate_angle(config.DISTANCE_L)
-            if config.ELEVATION_INPUT_FROM_DISTANCE_R:
-                config.AIM_ANGLE_R = interpolator.interpolate_angle(config.DISTANCE_R)
-            # AIM_DIRECTION_L/R = hướng mục tiêu (được set từ targeting hoặc ballistic calculator)
-            # KHÔNG tự động cập nhật ở đây - chỉ được set khi có tính toán mục tiêu
-            # ANGLE_L/R và DIRECTION_L/R = góc/hướng HIỆN TẠI từ cảm biến (CAN bus)
-            # Sẽ được cập nhật từ data_receiver khi nhận CAN bus 0x200, 0x201
+        
+        # AIM_ANGLE = góc mục tiêu (từ nội suy bảng bắn)
+        # Chỉ cập nhật tự động khi đang ở chế độ nhập khoảng cách
+        if config.ELEVATION_INPUT_FROM_DISTANCE_L:
+            # Chọn bảng bắn dựa trên USE_HIGH_TABLE_L
+            if config.USE_HIGH_TABLE_L and config.DISTANCE_L >= 9100:
+                interpolator_l = load_firing_table("table1_high.csv")
+            else:
+                interpolator_l = get_firing_table_interpolator()
+            
+            if interpolator_l:
+                config.AIM_ANGLE_L = interpolator_l.interpolate_angle(config.DISTANCE_L)
+        
+        if config.ELEVATION_INPUT_FROM_DISTANCE_R:
+            # Chọn bảng bắn dựa trên USE_HIGH_TABLE_R
+            if config.USE_HIGH_TABLE_R and config.DISTANCE_R >= 9100:
+                interpolator_r = load_firing_table("table1_high.csv")
+            else:
+                interpolator_r = get_firing_table_interpolator()
+            
+            if interpolator_r:
+                config.AIM_ANGLE_R = interpolator_r.interpolate_angle(config.DISTANCE_R)
+        
+        # AIM_DIRECTION_L/R = hướng mục tiêu (được set từ targeting hoặc ballistic calculator)
+        # KHÔNG tự động cập nhật ở đây - chỉ được set khi có tính toán mục tiêu
+        # ANGLE_L/R và DIRECTION_L/R = góc/hướng HIỆN TẠI từ cảm biến (CAN bus)
+        # Sẽ được cập nhật từ data_receiver khi nhận CAN bus 0x200, 0x201
         
         self.bullet_widget._update_launcher_status("Giàn trái", config.AMMO_L)
         self.bullet_widget._update_launcher_status("Giàn phải", config.AMMO_R)
