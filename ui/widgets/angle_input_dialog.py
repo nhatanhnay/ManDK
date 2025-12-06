@@ -900,8 +900,12 @@ class AngleInputDialog(QWidget):
                     # Chế độ tự động - lấy giá trị góc tầm hiện tại từ CAN
                     input_value = config.ANGLE_L if self.is_left_side else config.ANGLE_R
                 else:
-                    # Chế độ thủ công - lấy từ ô nhập
-                    input_value = float(self.distance_input.text()) if self.distance_input.text() else 0
+                    # Chế độ thủ công - lấy từ ô nhập, nếu trống thì giữ nguyên giá trị AIM_ANGLE hiện tại
+                    if self.distance_input.text():
+                        input_value = float(self.distance_input.text())
+                    else:
+                        # Nếu ô nhập trống, giữ nguyên góc tầm mục tiêu hiện tại
+                        input_value = config.AIM_ANGLE_L if self.is_left_side else config.AIM_ANGLE_R
                 # Clamp theo giới hạn từ config
                 input_value = max(float(self.elevation_min), min(float(self.elevation_max), input_value))
             else:
@@ -911,8 +915,12 @@ class AngleInputDialog(QWidget):
                     # Chế độ tự động - lấy giá trị khoảng cách hiện tại từ CAN
                     input_value = config.DISTANCE_L if self.is_left_side else config.DISTANCE_R
                 else:
-                    # Chế độ thủ công - lấy từ ô nhập
-                    input_value = float(self.distance_input.text()) if self.distance_input.text() else 0
+                    # Chế độ thủ công - lấy từ ô nhập, nếu trống thì giữ nguyên giá trị DISTANCE hiện tại
+                    if self.distance_input.text():
+                        input_value = float(self.distance_input.text())
+                    else:
+                        # Nếu ô nhập trống, giữ nguyên khoảng cách hiện tại
+                        input_value = config.DISTANCE_L if self.is_left_side else config.DISTANCE_R
                 # Clamp theo giới hạn
                 input_value = max(0.0, min(10000.0, input_value))
             
@@ -922,8 +930,12 @@ class AngleInputDialog(QWidget):
                 # Chế độ tự động - lấy giá trị góc hướng hiện tại từ CAN
                 direction = config.DIRECTION_L if self.is_left_side else config.DIRECTION_R
             else:
-                # Chế độ thủ công - lấy từ ô nhập
-                direction = float(self.direction_input.text()) if self.direction_input.text() else self.direction_value
+                # Chế độ thủ công - lấy từ ô nhập, nếu trống thì giữ nguyên giá trị AIM_DIRECTION hiện tại
+                if self.direction_input.text():
+                    direction = float(self.direction_input.text())
+                else:
+                    # Nếu ô nhập trống, giữ nguyên góc hướng mục tiêu hiện tại
+                    direction = config.AIM_DIRECTION_L if self.is_left_side else config.AIM_DIRECTION_R
             
             # Clamp góc hướng theo giới hạn từ config
             direction = max(-float(self.direction_neg_limit), min(float(self.direction_pos_limit), direction))
