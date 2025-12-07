@@ -383,9 +383,15 @@ def run():
             pass
         return
     
+    # Khởi tạo biến distance và direction
+    distance = 0.0
+    direction = 0.0
+    
     try:
-        for msg in bus:
-            print(msg)
+        while True:
+            msg = bus.recv(timeout=1.0)  # Timeout 1 giây
+            if msg is None:
+                continue
             
             # Parse module data (CAN ID 0x300-0x32F)
             module_data = parse_module_data_from_can(msg)
@@ -440,28 +446,35 @@ def run():
                     except:
                         pass
             
-            target_position = targeting_system.calculate_target_position(distance, direction)
-            
-            # Tính toán giải pháp bắn
-            solutions = targeting_system.calculate_firing_solutions(target_position)
-            
-            # Chỉ cập nhật khoảng cách và hướng từ CAN bus KHI Ở CHẾ ĐỘ TỰ ĐỘNG
-            # Góc tầm sẽ được tính liên tục trong UI loop
-            
-            # Giàn trái - chỉ cập nhật khoảng cách khi ở chế độ tự động
-            if config.DISTANCE_MODE_AUTO_L:
-                config.DISTANCE_L = solutions["cannon_1_distance"]
-            config.AIM_DIRECTION_L = solutions["cannon_1_azimuth"]  # Hướng luôn được cập nhật
-            
-            # Giàn phải - chỉ cập nhật khoảng cách khi ở chế độ tự động
-            if config.DISTANCE_MODE_AUTO_R:
-                config.DISTANCE_R = solutions["cannon_2_distance"]
-            config.AIM_DIRECTION_R = solutions["cannon_2_azimuth"]  # Hướng luôn được cập nhật
-            
-            mode_l = "AUTO" if config.DISTANCE_MODE_AUTO_L else "MANUAL"
-            mode_r = "AUTO" if config.DISTANCE_MODE_AUTO_R else "MANUAL"
-            print(f"Updated config - L ({mode_l}): dist={config.DISTANCE_L:.2f}, dir={config.DIRECTION_L:.2f}")
-            print(f"Updated config - R ({mode_r}): dist={config.DISTANCE_R:.2f}, dir={config.DIRECTION_R:.2f}")
+            # Chỉ tính toán targeting khi nhận được CAN_ID_DISTANCE hoặc CAN_ID_DIRECTION
+            # và ít nhất một bên đang ở chế độ tự động
+            if msg.arbitration_id in [CAN_ID_DISTANCE, CAN_ID_DIRECTION]:
+                target_position = targeting_system.calculate_target_position(distance, direction)
+                
+                # Tính toán giải pháp bắn
+                solutions = targeting_system.calculate_firing_solutions(target_position)
+                
+                # Chỉ cập nhật khoảng cách và hướng từ CAN bus KHI Ở CHẾ ĐỘ TỰ ĐỘNG
+                # Góc tầm sẽ được tính liên tục trong UI loop
+                
+                # Giàn trái - chỉ cập nhật khi ở chế độ tự động
+                if config.DISTANCE_MODE_AUTO_L:
+                    config.DISTANCE_L = solutions["cannon_1_distance"]
+                if config.DIRECTION_MODE_AUTO_L:
+                    config.AIM_DIRECTION_L = solutions["cannon_1_azimuth"]
+                
+                # Giàn phải - chỉ cập nhật khi ở chế độ tự động
+                if config.DISTANCE_MODE_AUTO_R:
+                    config.DISTANCE_R = solutions["cannon_2_distance"]
+                if config.DIRECTION_MODE_AUTO_R:
+                    config.AIM_DIRECTION_R = solutions["cannon_2_azimuth"]
+                
+                mode_l_dist = "AUTO" if config.DISTANCE_MODE_AUTO_L else "MANUAL"
+                mode_r_dist = "AUTO" if config.DISTANCE_MODE_AUTO_R else "MANUAL"
+                mode_l_dir = "AUTO" if config.DIRECTION_MODE_AUTO_L else "MANUAL"
+                mode_r_dir = "AUTO" if config.DIRECTION_MODE_AUTO_R else "MANUAL"
+                print(f"Updated config - L: dist={config.DISTANCE_L:.2f} ({mode_l_dist}), dir={config.AIM_DIRECTION_L:.2f} ({mode_l_dir})")
+                print(f"Updated config - R: dist={config.DISTANCE_R:.2f} ({mode_r_dist}), dir={config.AIM_DIRECTION_R:.2f} ({mode_r_dir})")
 
             # Nhận góc hiện tại của pháo từ CAN bus (góc từ cảm biến)
             if msg.arbitration_id == CAN_ID_CANNON_LEFT:  # Góc pháo trái
