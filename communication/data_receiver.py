@@ -473,9 +473,16 @@ def run():
                 mode_r_dist = "AUTO" if config.DISTANCE_MODE_AUTO_R else "MANUAL"
                 mode_l_dir = "AUTO" if config.DIRECTION_MODE_AUTO_L else "MANUAL"
                 mode_r_dir = "AUTO" if config.DIRECTION_MODE_AUTO_R else "MANUAL"
-                print(f"Updated config - L: dist={config.DISTANCE_L:.2f} ({mode_l_dist}), dir={config.AIM_DIRECTION_L:.2f} ({mode_l_dir})")
-                print(f"Updated config - R: dist={config.DISTANCE_R:.2f} ({mode_r_dist}), dir={config.AIM_DIRECTION_R:.2f} ({mode_r_dir})")
-
+                try:
+                    from ui.tabs.event_log_tab import LogTab
+                    LogTab.log(
+                        f"Tính toán giải pháp bắn: Mục tiêu tại {target_position}, "
+                        f"Giàn trái [Khoảng cách: {config.DISTANCE_L:.2f} km ({mode_l_dist}), Hướng: {config.AIM_DIRECTION_L:.2f}° ({mode_l_dir})], "
+                        f"Giàn phải [Khoảng cách: {config.DISTANCE_R:.2f} km ({mode_r_dist}), Hướng: {config.AIM_DIRECTION_R:.2f}° ({mode_r_dir})]",
+                        "INFO"
+                    )
+                except:
+                    pass
             # Nhận góc hiện tại của pháo từ CAN bus (góc từ cảm biến)
             if msg.arbitration_id == CAN_ID_CANNON_LEFT:  # Góc pháo trái
                 if len(msg.data) == 8:
