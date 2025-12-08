@@ -14,6 +14,7 @@ import os
 from typing import List
 import serial
 import threading
+from communication.can_bus_manager import can_bus_manager
 
 # Import CAN configuration
 from communication.can_config import (
@@ -346,14 +347,10 @@ def run():
     compass_thread.start()
     
     try:
-        bus = can.interface.Bus(channel=CAN_CHANNEL, bustype=CAN_BUSTYPE, bitrate=CAN_BITRATE)
+        # Sử dụng bus chung từ manager thay vì tạo mới
+        bus = can_bus_manager.get_bus()
         print(f"Listening on {CAN_CHANNEL}...")
-        # Ghi log thành công
-        try:
-            from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"CAN receiver đã khởi động thành công trên {CAN_CHANNEL}", "SUCCESS")
-        except:
-            pass
+        # Ghi log thành công (đã log trong can_bus_manager)
     except OSError as e:
         if e.errno == 19:  # No such device
             error_msg = f"Lỗi CAN: Không tìm thấy thiết bị '{CAN_CHANNEL}'. CAN receiver sẽ không hoạt động."
@@ -541,7 +538,9 @@ def run():
         print("Stopped receiving")
     except Exception as e:
         print(f"Lỗi khi nhận dữ liệu CAN: {e}")
-    finally:
-        if 'bus' in locals():
-            bus.shutdown()
-            print("CAN bus đã được đóng")
+        try:
+            from ui.tabs.event_log_tab import LogTab
+            LogTab.log(f"Lỗi khi nhận dữ liệu CAN: {e}", "ERROR")
+        except:
+            pass
+    # KHÔNG shutdown bus ở đây - bus được quản lý bởi can_bus_manager

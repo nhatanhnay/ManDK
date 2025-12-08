@@ -1,5 +1,7 @@
 import can
+import time
 from ui.tabs.event_log_tab import LogTab
+from communication.can_bus_manager import can_bus_manager
 
 # Import CAN configuration
 from communication.can_config import (
@@ -44,7 +46,8 @@ def sender_ammo_status(idx, data):
         ]
         # print(f'Sending data: {flag1:08b} {flag2:08b} {flag3:08b}')
         
-        bus = can.interface.Bus(channel=CAN_CHANNEL, bustype=CAN_BUSTYPE, bitrate=CAN_BITRATE)
+        # Sử dụng bus chung từ manager, KHÔNG tạo mới
+        bus = can_bus_manager.get_bus()
         msg_launch = can.Message(
             arbitration_id=CAN_ID_LAUNCH_COMMAND,
             data=data_launch,
@@ -52,7 +55,8 @@ def sender_ammo_status(idx, data):
         )
         print('CAN message sent successfully')
         bus.send(msg_launch)
-        bus.shutdown()
+        # KHÔNG shutdown bus ở đây!
+        time.sleep(0.001)  # Delay 1ms để tránh bus overload
         return True
         
     except OSError as e:
@@ -105,21 +109,26 @@ def sender_angle_direction(angle, direction, idx=CAN_ID_ANGLE_RIGHT):
         ]
         can_data = ' '.join([f'0x{byte:02X}' for byte in data_launch])
         
-        bus = can.interface.Bus(channel=CAN_CHANNEL, bustype=CAN_BUSTYPE, bitrate=CAN_BITRATE)
+        # Sử dụng bus chung từ manager, KHÔNG tạo mới
+        bus = can_bus_manager.get_bus()
         msg_launch = can.Message(
             arbitration_id=idx,
             data=data_launch,
             is_extended_id=False
         )
-        message = f'Dữ liệu gửi góc: {angle/10:.1f}, hướng: {direction/10:.1f} tới ID: {hex(idx)}. Data: {can_data}'
+        message = f'Dữ liệu gửi: ID 0x{idx:x}, Góc {angle/10:.1f}°, Hướng {direction/10:.1f}°. Data {can_data}'
         LogTab.log(message, "INFO")
+        print(message)
+        
         bus.send(msg_launch)
-        bus.shutdown()
+        # KHÔNG shutdown bus ở đây!
+        time.sleep(0.001)  # Delay 1ms để tránh bus overload
         return True
         
     except OSError as e:
         if e.errno == 19:  # No such device
-            error_msg = f"Lỗi CAN: Không tìm thấy thiết bị '{CAN_CHANNEL}'. Vui lòng kiểm tra kết nối CAN bus. Dữ liệu gửi: ID {hex(idx)}, Góc {angle/10:.1f}, Hướng {direction/10:.1f}. Data {can_data}"
+            error_msg = f"Lỗi CAN: Không tìm thấy thiết bị '{CAN_CHANNEL}'. Vui lòng kiểm tra kết nối CAN bus."
+            print(error_msg)
             # Ghi log vào event log
             try:
                 LogTab.log(error_msg, "ERROR")
