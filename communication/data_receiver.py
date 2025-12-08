@@ -446,93 +446,149 @@ def run():
             # Chỉ tính toán targeting khi nhận được CAN_ID_DISTANCE hoặc CAN_ID_DIRECTION
             # và ít nhất một bên đang ở chế độ tự động
             if msg.arbitration_id in [CAN_ID_DISTANCE, CAN_ID_DIRECTION]:
-                target_position = targeting_system.calculate_target_position(distance, direction)
-                
-                # Tính toán giải pháp bắn
-                solutions = targeting_system.calculate_firing_solutions(target_position)
-                
-                # Chỉ cập nhật khoảng cách và hướng từ CAN bus KHI Ở CHẾ ĐỘ TỰ ĐỘNG
-                # Góc tầm sẽ được tính liên tục trong UI loop
-                
-                # Giàn trái - chỉ cập nhật khi ở chế độ tự động
-                if config.DISTANCE_MODE_AUTO_L:
-                    config.DISTANCE_L = solutions["cannon_1_distance"]
-                if config.DIRECTION_MODE_AUTO_L:
-                    config.AIM_DIRECTION_L = solutions["cannon_1_azimuth"]
-                
-                # Giàn phải - chỉ cập nhật khi ở chế độ tự động
-                if config.DISTANCE_MODE_AUTO_R:
-                    config.DISTANCE_R = solutions["cannon_2_distance"]
-                if config.DIRECTION_MODE_AUTO_R:
-                    config.AIM_DIRECTION_R = solutions["cannon_2_azimuth"]
-                
-                mode_l_dist = "AUTO" if config.DISTANCE_MODE_AUTO_L else "MANUAL"
-                mode_r_dist = "AUTO" if config.DISTANCE_MODE_AUTO_R else "MANUAL"
-                mode_l_dir = "AUTO" if config.DIRECTION_MODE_AUTO_L else "MANUAL"
-                mode_r_dir = "AUTO" if config.DIRECTION_MODE_AUTO_R else "MANUAL"
                 try:
-                    from ui.tabs.event_log_tab import LogTab
-                    LogTab.log(
-                        f"Tính toán giải pháp bắn: Mục tiêu tại {target_position}, "
-                        f"Giàn trái [Khoảng cách: {config.DISTANCE_L:.2f} km ({mode_l_dist}), Hướng: {config.AIM_DIRECTION_L:.2f}° ({mode_l_dir})], "
-                        f"Giàn phải [Khoảng cách: {config.DISTANCE_R:.2f} km ({mode_r_dist}), Hướng: {config.AIM_DIRECTION_R:.2f}° ({mode_r_dir})]",
-                        "INFO"
-                    )
-                except:
-                    pass
+                    target_position = targeting_system.calculate_target_position(distance, direction)
+                    
+                    # Tính toán giải pháp bắn
+                    solutions = targeting_system.calculate_firing_solutions(target_position)
+                    
+                    # Chỉ cập nhật khoảng cách và hướng từ CAN bus KHI Ở CHẾ ĐỘ TỰ ĐỘNG
+                    # Góc tầm sẽ được tính liên tục trong UI loop
+                    
+                    # Giàn trái - chỉ cập nhật khi ở chế độ tự động
+                    if config.DISTANCE_MODE_AUTO_L:
+                        config.DISTANCE_L = solutions["cannon_1_distance"]
+                    if config.DIRECTION_MODE_AUTO_L:
+                        config.AIM_DIRECTION_L = solutions["cannon_1_azimuth"]
+                    
+                    # Giàn phải - chỉ cập nhật khi ở chế độ tự động
+                    if config.DISTANCE_MODE_AUTO_R:
+                        config.DISTANCE_R = solutions["cannon_2_distance"]
+                    if config.DIRECTION_MODE_AUTO_R:
+                        config.AIM_DIRECTION_R = solutions["cannon_2_azimuth"]
+                    
+                    mode_l_dist = "AUTO" if config.DISTANCE_MODE_AUTO_L else "MANUAL"
+                    mode_r_dist = "AUTO" if config.DISTANCE_MODE_AUTO_R else "MANUAL"
+                    mode_l_dir = "AUTO" if config.DIRECTION_MODE_AUTO_L else "MANUAL"
+                    mode_r_dir = "AUTO" if config.DIRECTION_MODE_AUTO_R else "MANUAL"
+                    
+                    # Log thông tin tính toán targeting
+                    try:
+                        from ui.tabs.event_log_tab import LogTab
+                        LogTab.log(
+                            f"Tính toán targeting - Trái: KC={config.DISTANCE_L:.1f}m ({mode_l_dist}), Hướng={config.AIM_DIRECTION_L:.1f}° ({mode_l_dir}) | "
+                            f"Phải: KC={config.DISTANCE_R:.1f}m ({mode_r_dist}), Hướng={config.AIM_DIRECTION_R:.1f}° ({mode_r_dir})",
+                            "INFO"
+                        )
+                    except:
+                        pass
+                except Exception as e:
+                    error_msg = f"Lỗi tính toán targeting: {e}"
+                    print(error_msg)
+                    try:
+                        from ui.tabs.event_log_tab import LogTab
+                        LogTab.log(error_msg, "ERROR")
+                    except:
+                        pass
             # Nhận góc hiện tại của pháo từ CAN bus (góc từ cảm biến)
             if msg.arbitration_id == CAN_ID_CANNON_LEFT:  # Góc pháo trái
                 if len(msg.data) == 8:
-                    angle, direction = struct.unpack("<ff", msg.data)
+                    angle, direction_cannon = struct.unpack("<ff", msg.data)
                     config.ANGLE_L = angle  # Góc hiện tại từ cảm biến
-                    config.DIRECTION_L = direction  # Hướng hiện tại từ cảm biến
-                    print(f"Received cannon_left - angle: {angle:.2f}°, direction: {direction:.2f}°")
+                    config.DIRECTION_L = direction_cannon  # Hướng hiện tại từ cảm biến
+                    print(f"Received cannon_left - angle: {angle:.2f}°, direction: {direction_cannon:.2f}°")
                     # Log vào lịch sử
                     try:
                         from ui.tabs.event_log_tab import LogTab
-                        LogTab.log(f"Nhận CAN data - ID=0x{CAN_ID_CANNON_LEFT:X} (Pháo trái): Góc tầm={angle:.2f}°, Hướng={direction:.2f}°", "INFO")
+                        LogTab.log(f"Nhận CAN - ID=0x{CAN_ID_CANNON_LEFT:X} (Pháo Trái): Góc={angle:.2f}°, Hướng={direction_cannon:.2f}°", "INFO")
+                    except:
+                        pass
+                else:
+                    error_msg = f"Lỗi CAN - ID=0x{CAN_ID_CANNON_LEFT:X}: nhận {len(msg.data)} bytes, cần 8 bytes"
+                    print(error_msg)
+                    try:
+                        from ui.tabs.event_log_tab import LogTab
+                        LogTab.log(error_msg, "ERROR")
                     except:
                         pass
             
             if msg.arbitration_id == CAN_ID_CANNON_RIGHT:  # Góc pháo phải
                 if len(msg.data) == 8:
-                    angle, direction = struct.unpack("<ff", msg.data)
+                    angle, direction_cannon = struct.unpack("<ff", msg.data)
                     config.ANGLE_R = angle  # Góc hiện tại từ cảm biến
-                    config.DIRECTION_R = direction  # Hướng hiện tại từ cảm biến
-                    print(f"Received cannon_right - angle: {angle:.2f}°, direction: {direction:.2f}°")
+                    config.DIRECTION_R = direction_cannon  # Hướng hiện tại từ cảm biến
+                    print(f"Received cannon_right - angle: {angle:.2f}°, direction: {direction_cannon:.2f}°")
                     # Log vào lịch sử
                     try:
                         from ui.tabs.event_log_tab import LogTab
-                        LogTab.log(f"Nhận CAN data - ID=0x{CAN_ID_CANNON_RIGHT:X} (Pháo phải): Góc tầm={angle:.2f}°, Hướng={direction:.2f}°", "INFO")
+                        LogTab.log(f"Nhận CAN - ID=0x{CAN_ID_CANNON_RIGHT:X} (Pháo Phải): Góc={angle:.2f}°, Hướng={direction_cannon:.2f}°", "INFO")
+                    except:
+                        pass
+                else:
+                    error_msg = f"Lỗi CAN - ID=0x{CAN_ID_CANNON_RIGHT:X}: nhận {len(msg.data)} bytes, cần 8 bytes"
+                    print(error_msg)
+                    try:
+                        from ui.tabs.event_log_tab import LogTab
+                        LogTab.log(error_msg, "ERROR")
                     except:
                         pass
 
             if msg.arbitration_id == CAN_ID_AMMO_STATUS:
-                #if can't run change msg['data'] to msg.data
-                data = msg.data
-                print(data)
-                
-                flag1 = unpack_bits(data[2], 8)
-                flag2 = unpack_bits(data[3], 8)
-                flag3 = unpack_bits(data[4], 2)
-                flags = flag1 + flag2 + flag3
-                if data[1] == SIDE_CODE_LEFT:
-                    config.AMMO_L = flags
-                    side_name = "Giàn trái"
-                elif data[1] == SIDE_CODE_RIGHT:
-                    config.AMMO_R = flags
-                    side_name = "Giàn phải"
-                else:
-                    raise ValueError(f"Unknown side code: {data[1]:#x}")
-                print(f"Ammo L: {config.AMMO_L}")
-                print(f"Ammo R: {config.AMMO_R}")
-                # Log vào lịch sử
+                try:
+                    #if can't run change msg['data'] to msg.data
+                    data = msg.data
+                    print(data)
+                    
+                    flag1 = unpack_bits(data[2], 8)
+                    flag2 = unpack_bits(data[3], 8)
+                    flag3 = unpack_bits(data[4], 2)
+                    flags = flag1 + flag2 + flag3
+                    if data[1] == SIDE_CODE_LEFT:
+                        config.AMMO_L = flags
+                        side_name = "Giàn Trái"
+                    elif data[1] == SIDE_CODE_RIGHT:
+                        config.AMMO_R = flags
+                        side_name = "Giàn Phải"
+                    else:
+                        error_msg = f"Lỗi CAN - ID=0x{CAN_ID_AMMO_STATUS:X}: Side code không hợp lệ {data[1]:#x}"
+                        print(error_msg)
+                        try:
+                            from ui.tabs.event_log_tab import LogTab
+                            LogTab.log(error_msg, "ERROR")
+                        except:
+                            pass
+                        continue
+                        
+                    print(f"Ammo L: {config.AMMO_L}")
+                    print(f"Ammo R: {config.AMMO_R}")
+                    # Log vào lịch sử
+                    try:
+                        from ui.tabs.event_log_tab import LogTab
+                        ammo_count = sum(flags)
+                        LogTab.log(f"Nhận CAN - ID=0x{CAN_ID_AMMO_STATUS:X} ({side_name}): Trạng thái đạn {ammo_count}/18 sẵn sàng", "INFO")
+                    except:
+                        pass
+                except Exception as e:
+                    error_msg = f"Lỗi xử lý CAN AMMO_STATUS: {e}"
+                    print(error_msg)
+                    try:
+                        from ui.tabs.event_log_tab import LogTab
+                        LogTab.log(error_msg, "ERROR")
+                    except:
+                        pass
+            
+            # Log cho các CAN ID không xác định (không phải module data)
+            if (msg.arbitration_id not in [CAN_ID_DISTANCE, CAN_ID_DIRECTION, 
+                                          CAN_ID_CANNON_LEFT, CAN_ID_CANNON_RIGHT, 
+                                          CAN_ID_AMMO_STATUS] and 
+                not is_module_data_id(msg.arbitration_id)):
+                data_hex = msg.data.hex().upper()
                 try:
                     from ui.tabs.event_log_tab import LogTab
-                    ammo_count = sum(flags)
-                    LogTab.log(f"Nhận CAN data - ID=0x{CAN_ID_AMMO_STATUS:X} ({side_name}): Cập nhật trạng thái đạn ({ammo_count}/18 sẵn sàng)", "INFO")
+                    LogTab.log(f"Nhận CAN - ID=0x{msg.arbitration_id:03X} (Không xác định): DLC={len(msg.data)}, Data={data_hex}", "WARNING")
                 except:
                     pass
+                print(f"Unknown CAN ID: 0x{msg.arbitration_id:03X}, DLC={len(msg.data)}, Data={data_hex}")
                         
     except KeyboardInterrupt:
         print("Stopped receiving")
