@@ -16,7 +16,7 @@ from ui.widgets.numeric_display_widget import NumericDataWidget
 from ui.widgets.custom_message_box_widget import CustomMessageBox
 from ui.components.ui_utilities import SVGColorChanger, ColoredSVGButton
 import ui.ui_config as config
-from communication.data_sender import sender_ammo_status, sender_angle_direction
+from communication.webhook_sender import sender_ammo_status, sender_angle_direction
 from ui.tabs.main_control_tab import MainTab, GridBackgroundWidget
 from ui.tabs.system_info_tab import InfoTab
 from ui.tabs.event_log_tab import LogTab

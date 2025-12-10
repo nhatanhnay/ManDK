@@ -1,0 +1,26 @@
+# Python Dependencies cho hệ thống webhook ManDK
+
+# Web framework cho webhook server/receiver
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# HTTP client cho gửi requests
+requests==2.31.0
+
+# PyQt5 cho GUI (giữ nguyên từ trước)
+PyQt5==5.15.9
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.12.2
+
+# Xử lý dữ liệu
+numpy==1.24.3
+pandas==2.0.3
+
+# Serial communication (cho compass)
+pyserial==3.5
+
+# YAML parser
+PyYAML==6.0.1
+
+# Optional: Logging và monitoring
+coloredlogs==15.0.1

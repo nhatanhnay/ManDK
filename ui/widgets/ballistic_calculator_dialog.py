@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QDoubleValidator, QIntValidator
 import ui.ui_config as config
-from communication.data_sender import sender_angle_direction
+from communication.webhook_sender import sender_angle_direction
 
 
 class BinaryValidator(QIntValidator):
@@ -827,65 +827,28 @@ class BallisticCalculatorWidget(QWidget):
         elevation_left_int = int(elevation_left * 10)  # Chuyển sang số nguyên * 10
         direction_left_int = int(direction_left * 10)  # Chuyển sang số nguyên * 10
         
-        # Tạo CAN data cho giàn trái
-        idx_left = 0x01A
-        can_data_left = [
-            idx_left,
-            elevation_left_int & 0xFF,
-            (elevation_left_int >> 8) & 0xFF,
-            direction_left_int & 0xFF,
-            (direction_left_int >> 8) & 0xFF,
-            0x11
-        ]
-        can_data_hex_left = ' '.join([f'0x{byte:02X}' for byte in can_data_left])
-        can_data_explained_left = (
-            f"[Giàn: Trái (0x{idx_left:02X}), "
-            f"Góc tầm: {elevation_left:.1f}° (0x{elevation_left_int:04X}), "
-            f"Góc hướng: {direction_left:.1f}° (0x{direction_left_int:04X}), "
-            f"Lệnh: 0x{can_data_left[5]:02X}]"
-        )
-        
-        # Gửi lệnh cho giàn trái
-        if sender_angle_direction(elevation_left_int, direction_left_int, idx=idx_left):
+        # Gửi lệnh cho giàn trái qua webhook
+        from communication.webhook_config import ENDPOINT_ANGLE_LEFT
+        if sender_angle_direction(elevation_left_int, direction_left_int, idx=ENDPOINT_ANGLE_LEFT):
             from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"Đã gửi lệnh góc tầm {elevation_left:.1f}° và góc hướng {direction_left:.1f}° cho giàn Trái - CAN Data: [{can_data_hex_left}]", "SUCCESS")
+            LogTab.log(f"Đã gửi lệnh góc tầm {elevation_left:.1f}° và góc hướng {direction_left:.1f}° cho giàn Trái", "SUCCESS")
         else:
             from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn Trái - CAN Data: [{can_data_hex_left}] - ID: 0x29", "ERROR")
-            LogTab.log(f"Chi tiết CAN Data: {can_data_explained_left}", "ERROR")
+            LogTab.log(f"Không thể gửi lệnh góc qua webhook cho giàn Trái", "ERROR")
         
-        # Gửi CAN message cho giàn phải (idx=0x32)
+        # Gửi lệnh cho giàn phải qua webhook
         elevation_right = aim_elevation_right + corrections['elevation_correction_right']
         direction_right = aim_direction_right + corrections['direction_correction_right']
         elevation_right_int = int(elevation_right * 10)  # Chuyển sang số nguyên * 10
         direction_right_int = int(direction_right * 10)  # Chuyển sang số nguyên * 10
         
-        # Tạo CAN data cho giàn phải
-        idx_right = 0x01B
-        can_data_right = [
-            idx_right,
-            elevation_right_int & 0xFF,
-            (elevation_right_int >> 8) & 0xFF,
-            direction_right_int & 0xFF,
-            (direction_right_int >> 8) & 0xFF,
-            0x11
-        ]
-        can_data_hex_right = ' '.join([f'0x{byte:02X}' for byte in can_data_right])
-        can_data_explained_right = (
-            f"[Giàn: Phải (0x{idx_right:02X}), "
-            f"Góc tầm: {elevation_right:.1f}° (0x{elevation_right_int:04X}), "
-            f"Góc hướng: {direction_right:.1f}° (0x{direction_right_int:04X}), "
-            f"Lệnh: 0x{can_data_right[5]:02X}]"
-        )
-        
-        # Gửi lệnh cho giàn phải
-        if sender_angle_direction(elevation_right_int, direction_right_int, idx=idx_right):
+        from communication.webhook_config import ENDPOINT_ANGLE_RIGHT
+        if sender_angle_direction(elevation_right_int, direction_right_int, idx=ENDPOINT_ANGLE_RIGHT):
             from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"Đã gửi lệnh góc tầm {elevation_right:.1f}° và góc hướng {direction_right:.1f}° cho giàn Phải - CAN Data: [{can_data_hex_right}]", "SUCCESS")
+            LogTab.log(f"Đã gửi lệnh góc tầm {elevation_right:.1f}° và góc hướng {direction_right:.1f}° cho giàn Phải", "SUCCESS")
         else:
             from ui.tabs.event_log_tab import LogTab
-            LogTab.log(f"Không thể gửi lệnh góc qua CAN bus cho giàn Phải - CAN Data: [{can_data_hex_right}] - ID: 0x29", "ERROR")
-            LogTab.log(f"Chi tiết CAN Data: {can_data_explained_right}", "ERROR")
+            LogTab.log(f"Không thể gửi lệnh góc qua webhook cho giàn Phải", "ERROR")
 
         # Ẩn widget
         self.hide()

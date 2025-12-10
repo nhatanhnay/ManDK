@@ -10,7 +10,8 @@ import compatibility_layer
 
 # Import project modules - Updated for new structure
 from control_panel import FireControl
-from communication import data_receiver as receiver
+# Chuyển từ CAN sang Webhook
+from communication import webhook_receiver as receiver
 
 # Import common constants
 try:

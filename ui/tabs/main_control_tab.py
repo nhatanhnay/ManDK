@@ -11,8 +11,7 @@ from ..widgets.ballistic_calculator_dialog import BallisticCalculatorWidget
 from ..widgets.angle_input_dialog import AngleInputDialog
 from ..components.ui_utilities import ColoredSVGButton
 import ui.ui_config as config
-from communication.data_sender import sender_angle_direction, sender_ammo_status
-from communication.can_config import CAN_ID_ANGLE_LEFT, CAN_ID_ANGLE_RIGHT
+from communication.webhook_sender import sender_angle_direction, sender_ammo_status
 import yaml
 import random
 import math
@@ -477,7 +476,7 @@ class MainTab(GridBackgroundWidget):
             can_data_left = [0x31, 0x31, flag1, flag2, flag3, 0x11]
             can_data_left_hex = ' '.join([f'0x{byte:02X}' for byte in can_data_left])
             
-            if not sender_ammo_status(0x31, left_selected):
+            if not sender_ammo_status(0x31, left_selected, is_left=True):
                 can_success = False
                 failed_can_data.append(f"Giàn trái: [{can_data_left_hex}]")
                 
@@ -492,7 +491,7 @@ class MainTab(GridBackgroundWidget):
             can_data_right = [0x31, 0x32, flag1, flag2, flag3, 0x11]
             can_data_right_hex = ' '.join([f'0x{byte:02X}' for byte in can_data_right])
             
-            if not sender_ammo_status(0x32, right_selected):
+            if not sender_ammo_status(0x32, right_selected, is_left=False):
                 can_success = False
                 failed_can_data.append(f"Giàn phải: [{can_data_right_hex}]")
         
@@ -585,17 +584,20 @@ class MainTab(GridBackgroundWidget):
         Args:
             side: 'left' hoặc 'right' để xác định giàn trái hay phải
         """
+        # Import webhook endpoints
+        from communication.webhook_config import ENDPOINT_ANGLE_LEFT, ENDPOINT_ANGLE_RIGHT
+        
         # Lấy khoảng cách và hướng hiện tại tùy theo side
         if side == 'left':
             current_distance = config.DISTANCE_L
             current_direction = config.DIRECTION_L
             side_text = "Trái"
-            idx = CAN_ID_ANGLE_LEFT  # ID cho giàn trái
+            idx = ENDPOINT_ANGLE_LEFT  # Endpoint cho giàn trái
         else:
             current_distance = config.DISTANCE_R
             current_direction = config.DIRECTION_R
             side_text = "Phải"
-            idx = CAN_ID_ANGLE_RIGHT  # ID cho giàn phải
+            idx = ENDPOINT_ANGLE_RIGHT  # Endpoint cho giàn phải
         
         # Tạo overlay dialog nếu chưa có hoặc tạo mới
         is_left = (side == 'left')
@@ -664,8 +666,8 @@ class MainTab(GridBackgroundWidget):
                 config.AIM_ANGLE_R = elevation
                 config.AIM_DIRECTION_R = direction
             
-            # Gửi lệnh qua CAN bus
-            from communication.data_sender import sender_angle_direction
+            # Gửi lệnh qua webhook
+            from communication.webhook_sender import sender_angle_direction
             
             # Chuyển đổi sang int cho CAN bus
             elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
@@ -714,8 +716,8 @@ class MainTab(GridBackgroundWidget):
                     config.AIM_ANGLE_R = elevation
                     config.AIM_DIRECTION_R = direction
                 
-                # Gửi lệnh qua CAN bus
-                from communication.data_sender import sender_angle_direction
+                # Gửi lệnh qua webhook
+                from communication.webhook_sender import sender_angle_direction
                 
                 # Chuyển đổi sang int cho CAN bus
                 elevation_int = int(elevation * 10)  # Nhân 10 để giữ 1 chữ số thập phân
